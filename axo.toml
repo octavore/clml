@@ -24,3 +24,6 @@ command = [
   "cargo run -q -p clml --example stream --features anstream | cat -v",
 ]
 description = "Show the anstream feature stripping codes when stdout is not a tty"
+
+[global_packages]
+"rvben/rumdl" = "^0.2.52"

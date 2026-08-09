@@ -1,0 +1,18 @@
+[global]
+respect-gitignore = true
+exclude = [
+  ".git",
+  ".github",
+  "node_modules",
+  "vendor",
+  "dist",
+  "build",
+]
+
+[MD013]
+line-length = 0  # Line length
+code-blocks = false  # Exclude code blocks from line length check
+tables = true  # Exclude tables from line length check
+headings = true  # Include headings in line length check
+reflow = true
+reflow-mode = "normalize"
