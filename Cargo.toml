@@ -1,6 +1,12 @@
-[package]
-name = "clml"
+[workspace]
+resolver = "3"
+members = ["clml", "clml-proc-macro"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
+license = "MIT"
+repository = "https://github.com/octavore/clml"
 
-[dependencies]
+[workspace.dependencies]
+clml-proc-macro = { version = "0.1.0", path = "clml-proc-macro" }

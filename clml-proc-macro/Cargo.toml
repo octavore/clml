@@ -1,0 +1,19 @@
+[package]
+name = "clml-proc-macro"
+description = "Implementation for the package clml"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[lib]
+proc-macro = true
+
+[features]
+terminfo = []
+
+[dependencies]
+nom = "8.0"
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = { version = "3.0", features = ["full"] }

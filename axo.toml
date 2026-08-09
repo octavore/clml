@@ -1,1 +1,22 @@
 project_name = "clml"
+
+[packages]
+rust = "stable"
+
+[tasks]
+build = "cargo build --workspace"
+check = "cargo check --workspace --all-features"
+test = ["cargo test --workspace", "cargo test --workspace --features terminfo"]
+doc = "cargo doc --workspace --no-deps"
+
+[tasks.package]
+command = "cargo package --workspace --no-verify --allow-dirty"
+description = "Check the crates package cleanly for publishing"
+
+[tasks.fmt]
+command = "cargo +nightly fmt --all"
+description = "Format with nightly rustfmt (rustfmt.toml uses nightly-only options)"
+
+[tasks.lint]
+command = "cargo clippy --workspace --all-features --all-targets"
+description = "Run clippy across the workspace"

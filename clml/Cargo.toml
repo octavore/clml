@@ -1,0 +1,16 @@
+[package]
+name = "clml"
+description = "Colorize and stylize strings for the terminal at compile-time, using an HTML-like syntax"
+keywords = ["color", "terminal", "ansi", "terminfo"]
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+readme = "README.md"
+
+[features]
+terminfo = ["clml-proc-macro/terminfo", "terminfo_crate"]
+
+[dependencies]
+clml-proc-macro.workspace = true
+terminfo_crate = { version = "0.9", optional = true, package = "terminfo" }
