@@ -154,6 +154,21 @@
 //! # }
 //! ```
 //!
+//! ## Hyperlinks
+//!
+//! `<link(URL)>` wraps text in an OSC 8 hyperlink, which most modern terminal emulators render as
+//! a clickable link:
+//!
+//! ```
+//! # use clml::cprintln;
+//! # fn main() {
+//! cprintln!("<link(https://example.com)>click me</>");
+//! # }
+//! ```
+//!
+//! Like other tags, it can be combined with styles (`<link(...),bold>`) and closed either by
+//! repeating the URL (`</link(https://example.com)>`) or with `</>`.
+//!
 //! # Optimization: no redundant ANSI codes
 //!
 //! The expanded format string will only contain the *needed* ANSI codes. This is done by making a
@@ -280,6 +295,7 @@
 //! |                 | `<bg:rgb(r,g,b)>`     | `<bg:#RRGGBB>` `<RGB(r,g,b)>`                               |
 //! | `<0>`...`<255>` | `<palette(...)>`      | `<p(...)>` `<pal(...)>`                                     |
 //! | `<P(...)>`      | `<bg:palette(...)>`   | `<PALETTE(...)>` `<PAL(...)>` `<bg:p(...)>` `<bg:pal(...)>` |
+//! |                 | `<link(URL)>`         |                                                             |
 
 pub use clml_proc_macro::{cformat, cstr, cwrite, cwriteln, untagged};
 
@@ -422,6 +438,28 @@ mod tests {
         assert_eq!(
             cformat!("<bold>BOLD</><dim>DIM</>"),
             "\u{1b}[1mBOLD\u{1b}[2mDIM\u{1b}[22m"
+        );
+    }
+
+    #[test]
+    #[rustfmt::skip]
+    fn format_link() {
+        assert_eq!(
+            cformat!("<link(https://example.com)>Click</link(https://example.com)>"),
+            "\u{1b}]8;;https://example.com\u{1b}\\Click\u{1b}]8;;\u{1b}\\"
+        );
+        assert_eq!(
+            cformat!("<link(https://example.com)>Click</>"),
+            "\u{1b}]8;;https://example.com\u{1b}\\Click\u{1b}]8;;\u{1b}\\"
+        );
+        assert_eq!(
+            cformat!("<link( https://example.com )>Click</>"),
+            "\u{1b}]8;;https://example.com\u{1b}\\Click\u{1b}]8;;\u{1b}\\"
+        );
+        // Combined with a style tag:
+        assert_eq!(
+            cformat!("<link(https://example.com),bold>Click</>"),
+            "\u{1b}[1m\u{1b}]8;;https://example.com\u{1b}\\Click\u{1b}[22m\u{1b}]8;;\u{1b}\\"
         );
     }
 

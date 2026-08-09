@@ -56,6 +56,9 @@ impl<'a> Context<'a> {
             state.strike |= tag.change_set.strike;
             state.reverse |= tag.change_set.reverse;
             state.conceal |= tag.change_set.conceal;
+            if let Some(ref url) = tag.change_set.link {
+                state.link = Some(url.clone());
+            }
         }
         state
     }
@@ -111,6 +114,7 @@ pub struct State {
     strike: bool,
     reverse: bool,
     conceal: bool,
+    link: Option<String>,
 }
 
 /// The result of the comparison between two [`State`]s.
@@ -129,6 +133,7 @@ pub struct StateDiff {
     strike: Action<bool>,
     reverse: Action<bool>,
     conceal: Action<bool>,
+    link: Action<Option<String>>,
 }
 
 impl StateDiff {
@@ -145,6 +150,7 @@ impl StateDiff {
             strike: Action::from_diff(Some(old.strike), Some(new.strike)),
             reverse: Action::from_diff(Some(old.reverse), Some(new.reverse)),
             conceal: Action::from_diff(Some(old.conceal), Some(new.conceal)),
+            link: Action::from_diff(Some(old.link.clone()), Some(new.link.clone())),
         }
     }
 
@@ -217,6 +223,13 @@ impl StateDiff {
         handle_attr!(self.strike, STRIKE, NO_STRIKE);
         handle_attr!(self.reverse, REVERSE, NO_REVERSE);
         handle_attr!(self.conceal, CONCEAL, NO_CONCEAL);
+
+        // Hyperlinks use the OSC 8 sequence, not SGR, so they're handled separately from
+        // `push_code!` above. An empty URL is how OSC 8 closes a previously opened link.
+        if let Action::Change(ref link) = self.link {
+            let url = link.as_deref().unwrap_or("");
+            output.push_str(&generate_osc8_link(url));
+        }
 
         output
     }
@@ -313,6 +326,8 @@ pub struct ChangeSet {
     pub reverse: bool,
     /// If it is `true`, then the conceal attribute has to be set (or unset for a close tag).
     pub conceal: bool,
+    /// If it is `Some`, then the hyperlink target has to be changed.
+    pub link: Option<String>,
 }
 
 impl ChangeSet {
@@ -329,6 +344,7 @@ impl ChangeSet {
             !self.strike,
             !self.reverse,
             !self.conceal,
+            self.link.is_none(),
         )
     }
 }
@@ -348,6 +364,7 @@ impl From<&[Change]> for ChangeSet {
                 Change::Strike => change_set.strike = true,
                 Change::Reverse => change_set.reverse = true,
                 Change::Conceal => change_set.conceal = true,
+                Change::Link(url) => change_set.link = Some(url.clone()),
             }
         }
         change_set
@@ -368,6 +385,7 @@ pub enum Change {
     Strike,
     Reverse,
     Conceal,
+    Link(String),
 }
 
 impl TryFrom<&str> for Change {

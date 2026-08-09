@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use nom::{
     Err,
     branch::alt,
-    bytes::complete::{tag, take_while_m_n},
+    bytes::complete::{tag, take_till1, take_while_m_n},
     character::complete::{space0, alphanumeric1, alpha1, u8, digit1},
     combinator::{consumed, map, map_res},
     multi::separated_list1,
@@ -79,6 +79,7 @@ pub fn color_tag(input: Input<'_>) -> Result<'_, ColorTag<'_>> {
 fn attr(input: Input<'_>) -> Result<'_, Change> {
     let mut parser = alt((
         style_attr,
+        link,
         map((color_kind_specifier, specified_color), |(kind, color)| kind.to_change(color)),
         map(color_16(Case::Lowercase), |color_16| Change::Foreground(Color::Color16(color_16))),
         map(
@@ -121,6 +122,23 @@ fn style_attr(input: Input<'_>) -> Result<'_, Change> {
         _ => { return Err(Err::Error(Error::new(input, ErrorKind::Tag, None))) }
     };
     Ok((input, change))
+}
+
+/// Parses a hyperlink attribute, like `"link(https://example.com)"`.
+fn link(input: Input<'_>) -> Result<'_, Change> {
+    map(
+        function(
+            tag("link"),
+            with_failure_message(url_value, "Expected a URL, e.g. link(https://example.com)")
+        ),
+        |url: &str| Change::Link(url.trim().to_string())
+    )
+    .parse(input)
+}
+
+/// Parses the URL argument of a `link(...)` attribute: everything up to the closing brace.
+fn url_value(input: Input<'_>) -> Result<'_, &str> {
+    take_till1(|c| c == ')')(input)
 }
 
 /// Parses specifiers like `"bg:"`.
@@ -438,6 +456,36 @@ mod tests {
                     Change::Bold,
                     Change::Foreground(color16!(Yellow, Bright)),
                 ]
+            )
+        );
+    }
+
+    #[test]
+    fn parse_link() {
+        let tag = color_tag("<link(https://example.com)>").unwrap().1;
+        assert_eq!(
+            tag,
+            open_tag!("<link(https://example.com)>", [Change::Link("https://example.com".to_string())])
+        );
+
+        let tag = color_tag("<link( https://example.com )>").unwrap().1;
+        assert_eq!(
+            tag,
+            open_tag!("<link( https://example.com )>", [Change::Link("https://example.com".to_string())])
+        );
+
+        let tag = color_tag("</link(https://example.com)>").unwrap().1;
+        assert_eq!(
+            tag,
+            close_tag!("</link(https://example.com)>", [Change::Link("https://example.com".to_string())])
+        );
+
+        let tag = color_tag("<link(https://example.com),bold>").unwrap().1;
+        assert_eq!(
+            tag,
+            open_tag!(
+                "<link(https://example.com),bold>",
+                [Change::Link("https://example.com".to_string()), Change::Bold]
             )
         );
     }

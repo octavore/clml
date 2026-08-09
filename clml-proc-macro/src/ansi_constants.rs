@@ -31,6 +31,12 @@ pub fn generate_ansi_code(params: &[u8]) -> String {
     format!("\u{1b}[{params}m")
 }
 
+/// Generate an OSC 8 hyperlink sequence. Passing an empty `url` closes the previously opened link,
+/// as specified by the OSC 8 convention.
+pub fn generate_osc8_link(url: &str) -> String {
+    format!("\u{1b}]8;;{url}\u{1b}\\")
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -40,5 +46,11 @@ mod tests {
         assert_eq!(generate_ansi_code(&[0]), "\u{1b}[0m");
         assert_eq!(generate_ansi_code(&[31]), "\u{1b}[31m");
         assert_eq!(generate_ansi_code(&[38, 5, 1]), "\u{1b}[38;5;1m");
+    }
+
+    #[test]
+    fn osc8_link() {
+        assert_eq!(generate_osc8_link("https://example.com"), "\u{1b}]8;;https://example.com\u{1b}\\");
+        assert_eq!(generate_osc8_link(""), "\u{1b}]8;;\u{1b}\\");
     }
 }

@@ -69,6 +69,9 @@ Styles: `<strong>`/`<em>`/`<bold>`/`<s>`, `<dim>`, `<underline>`/`<u>`, `<italic
 256-color and true-color are supported: `<palette(42)>` (aliases `<p(...)>`, `<pal(...)>`, or just
 `<42>`), `<rgb(10,20,30)>`, and `<#a0b0c0>`.
 
+Hyperlinks use the OSC 8 escape sequence, understood by most modern terminal emulators:
+`<link(https://example.com)>text</>` makes `text` a clickable link.
+
 Nested tags work as you would expect, and unclosed tags are closed automatically at the end of the
 string. Consecutive tags are collapsed so no redundant escape sequences are emitted. Errors — an
 unknown color, a mismatched close tag — are reported at compile time, pointing into the format
