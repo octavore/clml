@@ -47,6 +47,27 @@ pub fn cwriteln(input: TokenStream) -> TokenStream {
     get_macro("writeln", input, true)
 }
 
+/// The same as `cformat!()`, but also dedents the format string like `indoc::indoc!()`.
+#[cfg(feature = "doc")]
+#[proc_macro]
+pub fn cformatdoc(input: TokenStream) -> TokenStream {
+    get_macro_doc("format", input, false)
+}
+
+/// The same as `cwrite!()`, but also dedents the format string like `indoc::indoc!()`.
+#[cfg(feature = "doc")]
+#[proc_macro]
+pub fn cwritedoc(input: TokenStream) -> TokenStream {
+    get_macro_doc("write", input, true)
+}
+
+/// The same as `cwriteln!()`, but also dedents the format string like `indoc::indoc!()`.
+#[cfg(feature = "doc")]
+#[proc_macro]
+pub fn cwritelndoc(input: TokenStream) -> TokenStream {
+    get_macro_doc("writeln", input, true)
+}
+
 /// Colorizes a string literal, without formatting the `format!`-like placeholders.
 ///
 /// Accepts only one argument.
@@ -101,10 +122,34 @@ impl Parse for WriteInput {
 
 /// Renders a whole processed macro.
 fn get_macro(macro_name: &str, input: TokenStream, is_write_macro: bool) -> TokenStream {
+    get_macro_impl(
+        macro_name,
+        input,
+        is_write_macro,
+        crate::ansi::get_format_args,
+    )
+}
+
+/// Same as [`get_macro`], but the format string is dedented like `indoc::indoc!()`.
+#[cfg(feature = "doc")]
+fn get_macro_doc(macro_name: &str, input: TokenStream, is_write_macro: bool) -> TokenStream {
+    get_macro_impl(
+        macro_name,
+        input,
+        is_write_macro,
+        crate::ansi::get_format_args_doc,
+    )
+}
+
+fn get_macro_impl(
+    macro_name: &str,
+    input: TokenStream,
+    is_write_macro: bool,
+    get_format_args: fn(TokenStream) -> Result<TokenStream2, crate::error::SpanError>,
+) -> TokenStream {
     let macro_name = util::ident(macro_name);
-    let fmt_args = |input_tail| {
-        crate::ansi::get_format_args(input_tail).unwrap_or_else(|err| err.to_token_stream())
-    };
+    let fmt_args =
+        |input_tail| get_format_args(input_tail).unwrap_or_else(|err| err.to_token_stream());
 
     if is_write_macro {
         let WriteInput { dst, rest } = parse_macro_input!(input);

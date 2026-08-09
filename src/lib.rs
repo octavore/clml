@@ -1,4 +1,6 @@
-//! Colorize and stylize strings for terminal at compile-time, by using an HTML-like syntax.
+//! Colorize and stylize strings for terminal at compile-time, by using an HTML-like syntax. Based
+//! on [`color-print`](https://gitlab.com/dajoha/color-print). CLML stands for `command-line markup
+//! language`.
 //!
 //! This library provides the following macros:
 //!
@@ -12,17 +14,11 @@
 //!  - `cstr!(<FORMAT_STRING>)`
 //!  - `untagged!(<FORMAT_STRING>)`
 //!
-//! The macros have the same syntax as their corresponding [`std`] variants:
-//! - [`cformat!()`] as [`format!()`]
-//! - [`cprint!()`] as [`print!()`]
-//! - [`cprintln!()`] as [`println!()`]
-//! - [`ceprint!()`] as [`eprint!()`]
-//! - [`ceprintln!()`] as [`eprintln!()`]
-//! - [`cwrite!()`] as [`write!()`]
-//! - [`cwriteln!()`] as [`writeln!()`]
+//! With the `doc` feature enabled, a `...doc!` variant of each formatting macro is also available
+//! (`cformatdoc!`, `cprintdoc!`, `cprintlndoc!`, `ceprintdoc!`, `ceprintlndoc!`, `cwritedoc!`,
+//! `cwritelndoc!`), which dedents the format string like [`indoc::indoc!()`]; see below for more.
 //!
-//! But they accept an additional syntax inside the format string: HTML-liketags which add ANSI
-//! colors/styles at compile-time.
+//! CLML macros support colors via HTML-like tags which add ANSI colors/styles at compile-time.
 //!
 //! [`cstr!()`] only transforms the given string literal into another string literal, without
 //! formatting anything else than the colors tag.
@@ -56,15 +52,20 @@
 //!
 //! ## Pros
 //!
-//! * Styling is processed at compile-time, so there is no runtime payload;
-//! * Nested tags are well handled, e.g. `"<green>...<blue>...</blue>...</green>"`;
+//! * Styling is processed at compile-time, so there is no runtime payload.
+//! * Nested tags are well handled, e.g. `"<green>...<blue>...</blue>...</green>"`.
 //! * Some optimizations are performed to avoid redundant ANSI sequences, because these
-//!   optimizations can be done at compile-time without impacting the runtime;
-//! * Almost every tag has a short name, so colorizing can be done quickly: `"my <b>blue</> word"`;
-//! * Each provided macro can be used exactly in the same way as the standard `format!`-like macros;
-//!   e.g., positional arguments and named arguments can be used as usual;
-//! * Supports 16, 256 and 16M colors;
+//!   optimizations can be done at compile-time without impacting the runtime.
+//! * Almost every tag has a short name, so colorizing can be done quickly: `"my <b>blue</> word"`.
+//! * Each provided macro can be used exactly in the same way as the standard `format!`-like macros.
+//!   e.g., positional arguments and named arguments can be used as usual.
+//! * Supports 16, 256 and 16M colors.
 //! * Fine-grained error handling (errors will be given at compile-time).
+//! * Macros can be composed with other macros, e.g. re-exported through your own `macro_rules!`.
+//! * Native support for [`anstream`](https://crates.io/crates/anstream) (automatically removes ANSI
+//!   codes where not supported), via the `anstream` feature.
+//! * Native support for multi-line strings with automatic dedenting, via the `doc` feature.
+//! * Supports OSC 8 hyperlinks.
 //!
 //! ## Cons
 //!
@@ -194,31 +195,62 @@
 //! # }
 //! ```
 //!
-//! # The feature `anstream`
+//! # Composability
 //!
-//! By default the printing macros write to `std::io::stdout` / `stderr`, emitting the escape codes
-//! verbatim. Enabling the `anstream` feature routes them through
-//! [`anstream`](https://crates.io/crates/anstream)'s auto-adapting streams instead:
+//! `clml` is designed to be wrapped. Macros will work when re-exporting them through your own
+//! `macro_rules!`, e.g. routing output through a tty-aware adapter such as
+//! [`anstream`](https://crates.io/crates/anstream):
+//!
+//! ```
+//! macro_rules! status {
+//!     ($($arg:tt)*) => { ::clml::cprintln!($($arg)*) };
+//! }
+//!
+//! let package = "clml";
+//! status!("<green>Compiling</green> {package}");
+//! ```
+//!
+//! Implicit named captures (e.g. `{package}` above) will resolve against the caller's scope, not
+//! the wrapper.
+//!
+//! # `anstream` feature
+//!
+//! By default the printing macros write to `std::io::stdout`/`stderr` and the escape codes go out
+//! verbatim. Enable the `anstream` feature to route them through
+//! [`anstream`](https://crates.io/crates/anstream) instead:
 //!
 //! ```toml
 //! clml = { version = "0.1", features = ["anstream"] }
 //! ```
 //!
-//! Nothing changes at the call site — `cprintln!` and friends keep the same syntax — but the output
-//! now adapts to its destination:
+//! With anstream, backend codes are stripped when stdout isn't a terminal,
+//! `NO_COLOR`/`CLICOLOR`/`CLICOLOR_FORCE` are honored, and legacy Windows consoles get console API
+//! calls instead of escape sequences.
 //!
-//! * escape codes are stripped when stdout/stderr is not a terminal, so piped and redirected output
-//!   stays clean;
-//! * `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE` are honoured;
-//! * on legacy Windows consoles without virtual terminal processing, styling is translated into
-//!   console API calls.
 //!
-//! Only [`cprint!()`], [`cprintln!()`], [`ceprint!()`] and [`ceprintln!()`] are affected.
-//! [`cformat!()`], [`cstr!()`] and the `cwrite!` macros produce values rather than writing to a
-//! stream, so they are unchanged; pass their output to an [`anstream::AutoStream`] yourself if you
-//! need the same adaptation.
+//! # `doc` feature
 //!
-//! [`anstream::AutoStream`]: https://docs.rs/anstream/latest/anstream/struct.AutoStream.html
+//! Enabling the `doc` feature adds a `...doc!` variant of the formatting macros:
+//! [`cformatdoc!()`], [`cprintdoc!()`], [`cprintlndoc!()`], [`ceprintdoc!()`], [`ceprintlndoc!()`],
+//! [`cwritedoc!()`], [`cwritelndoc!()`]. These dedent the format string like [`indoc::indoc!()`]
+//! does, on top of the usual tag processing:
+//!
+//! ```toml
+//! clml = { version = "0.1", features = ["doc"] }
+//! ```
+//!
+//! ```text
+//! cprintlndoc!(
+//!     "
+//!     <green>Hello, {name}!</green>
+//!         This line is indented one level further.
+//!     "
+//! );
+//! ```
+//!
+//! Color tags are resolved first, then the common leading whitespace is stripped from every line,
+//! similar to wrapping the format string in `indoc!`. Supports implicit named captures (e.g.
+//! `{name}` above).
 //!
 //! # Naming rules of the tags:
 //!
@@ -296,6 +328,8 @@
 //! |                 | `<link(URL)>`         |                                                             |
 
 pub use clml_proc_macro::{cformat, cstr, cwrite, cwriteln, untagged};
+#[cfg(feature = "doc")]
+pub use clml_proc_macro::{cformatdoc, cwritedoc, cwritelndoc};
 
 /// The same as `print!()`, but parses color tags.
 ///
@@ -327,6 +361,46 @@ macro_rules! ceprint {
 #[macro_export]
 macro_rules! ceprintln {
     ($($arg:tt)*) => { $crate::__private::eprintln!("{}", $crate::cformat!($($arg)*)) };
+}
+
+/// The same as `print!()`, but parses color tags and dedents the format string like
+/// `indoc::indoc!()`.
+///
+/// Writes through [`__private`], so the `anstream` feature applies.
+#[cfg(feature = "doc")]
+#[macro_export]
+macro_rules! cprintdoc {
+    ($($arg:tt)*) => { $crate::__private::print!("{}", $crate::cformatdoc!($($arg)*)) };
+}
+
+/// The same as `println!()`, but parses color tags and dedents the format string like
+/// `indoc::indoc!()`.
+///
+/// Writes through [`__private`], so the `anstream` feature applies.
+#[cfg(feature = "doc")]
+#[macro_export]
+macro_rules! cprintlndoc {
+    ($($arg:tt)*) => { $crate::__private::println!("{}", $crate::cformatdoc!($($arg)*)) };
+}
+
+/// The same as `eprint!()`, but parses color tags and dedents the format string like
+/// `indoc::indoc!()`.
+///
+/// Writes through [`__private`], so the `anstream` feature applies.
+#[cfg(feature = "doc")]
+#[macro_export]
+macro_rules! ceprintdoc {
+    ($($arg:tt)*) => { $crate::__private::eprint!("{}", $crate::cformatdoc!($($arg)*)) };
+}
+
+/// The same as `eprintln!()`, but parses color tags and dedents the format string like
+/// `indoc::indoc!()`.
+///
+/// Writes through [`__private`], so the `anstream` feature applies.
+#[cfg(feature = "doc")]
+#[macro_export]
+macro_rules! ceprintlndoc {
+    ($($arg:tt)*) => { $crate::__private::eprintln!("{}", $crate::cformatdoc!($($arg)*)) };
 }
 
 /// Implementation detail of the printing macros. Not part of the public API.
@@ -507,7 +581,7 @@ mod tests {
         assert_eq!(untagged!("<red>hi <em>all</></>"), "hi all");
     }
 
-    /// Regression test for wrapping the macros in another `macro_rules!` — the
+    /// Regression test for wrapping the macros in another `macro_rules!`, the
     /// pattern used to route output through a stream adapter such as
     /// `anstream`.
     ///
@@ -547,5 +621,65 @@ mod tests {
             "\u{1b}[31mhello\u{1b}[39m"
         );
         assert_eq!(wrapped_cstr!("<red>hi</red>"), "\u{1b}[31mhi\u{1b}[39m");
+    }
+
+    #[cfg(feature = "doc")]
+    #[test]
+    fn format_doc_dedents() {
+        assert_eq!(
+            cformatdoc!(
+                "
+                <red>RED
+                    indented</red>
+                "
+            ),
+            "\u{1b}[31mRED\n    indented\u{1b}[39m\n"
+        );
+
+        assert_eq!(cformatdoc!("<red>{}</red>", "Hi"), "\u{1b}[31mHi\u{1b}[39m");
+
+        let mut s = String::new();
+        cwritedoc!(
+            &mut s,
+            "
+            <bold>a
+              b</bold>
+            "
+        )
+        .unwrap();
+        assert_eq!(s, "\u{1b}[1ma\n  b\u{1b}[22m\n");
+
+        let mut s = String::new();
+        cwritelndoc!(
+            &mut s,
+            "
+            <bold>a
+              b</bold>"
+        )
+        .unwrap();
+        assert_eq!(s, "\u{1b}[1ma\n  b\u{1b}[22m\n");
+    }
+
+    #[cfg(feature = "doc")]
+    #[test]
+    fn print_doc_macros_compile_and_run() {
+        cprintdoc!(
+            "
+            <green>ok</green>
+            "
+        );
+        cprintlndoc!(
+            "
+            <green>ok</green>"
+        );
+        ceprintdoc!(
+            "
+            <red>note</red>
+            "
+        );
+        ceprintlndoc!(
+            "
+            <red>note</red>"
+        );
     }
 }

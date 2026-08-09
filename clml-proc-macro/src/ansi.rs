@@ -1,7 +1,7 @@
 //! Rewrites a format string's colour tags into ANSI escape sequences at compile time.
 
 use proc_macro::TokenStream;
-use proc_macro2::{Span, TokenStream as TokenStream2};
+use proc_macro2::TokenStream as TokenStream2;
 use quote::{ToTokens, quote};
 use syn::LitStr;
 
@@ -20,12 +20,38 @@ pub fn get_format_args(input: TokenStream) -> Result<TokenStream2, SpanError> {
     // placeholder for a `format!`-like macro, or a color code:
     let format_nodes = parse_format_string(&format_string, &format_string_token)?;
 
-    let final_format_string =
-        get_format_string_from_nodes(format_nodes, format_string_token.span())?;
+    let final_format_string = get_format_string_from_nodes(format_nodes)?;
+    let final_format_string = LitStr::new(&final_format_string, format_string_token.span());
 
     // Group all the final arguments into a single iterator:
     let args = args.iter().map(|arg| arg.to_token_stream()).skip(1); // Skip the original format string
-    let final_args = std::iter::once(final_format_string).chain(args);
+    let final_args = std::iter::once(quote! { #final_format_string }).chain(args);
+
+    Ok(quote! { #(#final_args),* })
+}
+
+/// Same as [`get_format_args`], but dedents the format string the same way `indoc::indoc!()`
+/// does.
+///
+/// Color tags are resolved first, then the resulting text is dedented using
+/// [`unindent::unindent`]).
+///
+/// The dedented text is spliced directly into `format!`/`write!`/`writeln!` as a plain literal,
+/// in one macro expansion, exactly like [`get_format_args`] does for color tags, rather than
+/// emitting a nested `indoc!(..)` call which would silently disable implict named captures: see
+/// the `implicit_capture_through_macro_rules_wrapper` test
+#[cfg(feature = "doc")]
+pub fn get_format_args_doc(input: TokenStream) -> Result<TokenStream2, SpanError> {
+    let (format_string_token, args) = get_args_and_format_string(input)?;
+    let format_string = format_string_token.value();
+
+    let format_nodes = parse_format_string(&format_string, &format_string_token)?;
+    let final_format_string = get_format_string_from_nodes(format_nodes)?;
+    let final_format_string = unindent::unindent(&final_format_string);
+    let final_format_string = LitStr::new(&final_format_string, format_string_token.span());
+
+    let args = args.iter().map(|arg| arg.to_token_stream()).skip(1); // Skip the original format string
+    let final_args = std::iter::once(quote! { #final_format_string }).chain(args);
 
     Ok(quote! { #(#final_args),* })
 }
@@ -44,20 +70,13 @@ pub fn get_cstr(input: TokenStream) -> Result<TokenStream2, SpanError> {
     // a color code; `format!`-like placeholders will be parsed indenpendently, but as they are put
     // back unchanged into the format string, it's not a problem:
     let format_nodes = parse_format_string(&format_string, &format_string_token)?;
-    get_format_string_from_nodes(format_nodes, format_string_token.span())
+    let final_format_string = get_format_string_from_nodes(format_nodes)?;
+    let final_format_string = LitStr::new(&final_format_string, format_string_token.span());
+    Ok(quote! { #final_format_string })
 }
 
 /// Generates a new format string with the color tags replaced by the right ANSI codes.
-///
-/// `original_span` must be the span of the format string literal the caller actually wrote. The
-/// rebuilt literal is stamped with it so that implicit named captures (`"{msg}"`, RFC 2795) keep
-/// resolving in the caller's scope. Letting `quote!` supply its own `Span::call_site()` here would
-/// break every call made from inside another `macro_rules!` body, because the fresh span resolves
-/// names at that wrapper macro's definition site instead of at the true call site.
-fn get_format_string_from_nodes(
-    nodes: Vec<Node>,
-    original_span: Span,
-) -> Result<TokenStream2, SpanError> {
+fn get_format_string_from_nodes(nodes: Vec<Node>) -> Result<String, SpanError> {
     // The final, modified format string which will be given to the `format!`-like macro:
     let mut format_string = String::new();
     // Stores which colors and attributes are set while processing the format string:
@@ -76,6 +95,5 @@ fn get_format_string_from_nodes(
         }
     }
 
-    let format_string = LitStr::new(&format_string, original_span);
-    Ok(quote! { #format_string })
+    Ok(format_string)
 }

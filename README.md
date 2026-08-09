@@ -77,7 +77,7 @@ By default the printing macros write to `std::io::stdout`/`stderr` and the escap
 clml = { version = "0.1", features = ["anstream"] }
 ```
 
-The macros are still the same, but with the anstream backend codes are stripped when stdout isn't a terminal, `NO_COLOR`/`CLICOLOR`/`CLICOLOR_FORCE` are honored, and legacy Windows consoles get console API calls instead of escape sequences.
+With anstream, backend codes are stripped when stdout isn't a terminal, `NO_COLOR`/`CLICOLOR`/`CLICOLOR_FORCE` are honored, and legacy Windows consoles get console API calls instead of escape sequences.
 
 ```console
 $ cargo run --example stream | cat -v
@@ -86,6 +86,28 @@ $ cargo run --example stream | cat -v
 $ cargo run --example stream --features anstream | cat -v
 Finished building clml
 ```
+
+## The `doc` feature
+
+Enable the `doc` feature to get a `...doc!` variant of every formatting macro (`cformatdoc!`, `cprintdoc!`, `cprintlndoc!`, `ceprintdoc!`, `ceprintlndoc!`, `cwritedoc!`, `cwritelndoc!`) which dedents the format string the same way [`indoc::indoc!()`](https://crates.io/crates/indoc) does, on top of the usual tag processing:
+
+```toml
+clml = { version = "0.1", features = ["doc"] }
+```
+
+```rust
+use clml::cprintlndoc;
+
+let name = "world";
+cprintlndoc!(
+    "
+    <green>Hello, {name}!</green>
+        This line is indented one level further.
+    "
+);
+```
+
+Color tags are resolved first, then the common leading whitespace is stripped from every line, similar to wrapping the format string in `indoc!`.Supports implicit named captures (e.g. `{name}` above).
 
 ## License
 

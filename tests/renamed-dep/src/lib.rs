@@ -6,7 +6,7 @@
 
 #[cfg(test)]
 mod tests {
-    use mycolor::{ceprintln, cformat, cprint, cprintln};
+    use mycolor::{ceprintln, cformat, cformatdoc, cprint, cprintln};
 
     #[test]
     fn printing_macros_work_under_a_renamed_dependency() {
@@ -21,6 +21,23 @@ mod tests {
         assert_eq!(
             cformat!("<red>{target}</red>"),
             "\u{1b}[31mrenamed-dep\u{1b}[39m"
+        );
+    }
+
+    /// `cformatdoc!` also dedents the format string and keeps implicit named captures (`{target}`)
+    /// working under a renamed dependency.
+    #[test]
+    fn doc_macros_work_under_a_renamed_dependency() {
+        let target = "renamed-dep";
+
+        assert_eq!(
+            cformatdoc!(
+                "
+                <red>{target}
+                    built</red>
+                "
+            ),
+            "\u{1b}[31mrenamed-dep\n    built\u{1b}[39m\n"
         );
     }
 }

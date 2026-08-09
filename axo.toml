@@ -5,8 +5,12 @@ rust = "stable"
 
 [tasks]
 # Format with nightly rustfmt (rustfmt.toml uses nightly-only options)
-fmt = "cargo +nightly fmt --all"
-lint = "cargo clippy --workspace --all-features --all-targets"
+"fmt:rust" = ["cargo clippy", "cargo +nightly fmt --all"]
+"fmt:md" = "rumdl fmt ."
+fmt = [":fmt:rust", ":fmt:md"]
+"lint:rust" = "cargo clippy --workspace --all-features --all-targets"
+"lint:md" = "rumdl check ."
+lint = [":lint:rust", ":lint:md"]
 build = "cargo build --workspace"
 check = "cargo check --workspace --all-features"
 doc = "cargo doc --workspace --no-deps"
@@ -16,7 +20,11 @@ test = [
   "cargo test --workspace",
   "cargo test --workspace --all-features",
 ]
-ci = [":fmt", ":lint", ":check", ":test"]
+ci = [
+  ":lint",
+  ":check",
+  ":test",
+]
 
 [tasks.demo]
 command = [
