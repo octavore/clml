@@ -8,4 +8,4 @@ publish = false
 
 [dependencies]
 # Deliberately renamed: the macros must not rely on the dependency being called `clml`.
-mycolor = { package = "clml", path = "../../clml" }
+mycolor = { package = "clml", path = "../.." }
