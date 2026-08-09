@@ -15,11 +15,13 @@ clml-proc-macro = { version = "0.1.0", path = "clml-proc-macro" }
 name = "clml"
 description = "Colorize and stylize strings for the terminal at compile-time, using an HTML-like syntax"
 keywords = ["color", "terminal", "ansi", "anstream"]
+categories = ["command-line-interface"]
 version.workspace = true
 edition.workspace = true
 license.workspace = true
 repository.workspace = true
 readme = "README.md"
+exclude = ["axo.toml", "axo.lock", ".rumdl.toml", "rustfmt.toml", ".gitignore"]
 
 [features]
 # Route the printing macros through `anstream`, which adapts ANSI escape codes to the terminal

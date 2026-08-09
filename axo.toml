@@ -25,5 +25,14 @@ command = [
 ]
 description = "Show the anstream feature stripping codes when stdout is not a tty"
 
+[tasks."crates:publish"]
+command = [
+  "cargo publish -p clml-proc-macro",
+  "cargo publish -p clml",
+]
+env = {
+  "CARGO_REGISTRY_TOKEN" = "axo://projects/crates-io/api-token",
+}
+
 [global_packages]
 "rvben/rumdl" = "^0.2.52"
