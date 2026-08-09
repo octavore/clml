@@ -1,4 +1,4 @@
-//! This module is only used when the feature `terminfo` is not activated.
+//! Rewrites a format string's colour tags into ANSI escape sequences at compile time.
 
 use proc_macro::TokenStream;
 use proc_macro2::{Span, TokenStream as TokenStream2};

@@ -6,11 +6,18 @@ rust = "stable"
 [tasks]
 build = "cargo build --workspace"
 check = "cargo check --workspace --all-features"
-test = ["cargo test --workspace", "cargo test --workspace --features terminfo"]
+test = ["cargo test --workspace", "cargo test --workspace --all-features"]
 doc = "cargo doc --workspace --no-deps"
 
+[tasks.demo]
+command = [
+    "cargo run -q -p clml --example stream | cat -v",
+    "cargo run -q -p clml --example stream --features anstream | cat -v",
+]
+description = "Show the anstream feature stripping codes when stdout is not a tty"
+
 [tasks.package]
-command = "cargo package --workspace --no-verify --allow-dirty"
+command = "cargo package -p clml -p clml-proc-macro --no-verify --allow-dirty"
 description = "Check the crates package cleanly for publishing"
 
 [tasks.fmt]

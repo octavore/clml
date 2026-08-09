@@ -76,13 +76,31 @@ string.
 
 See the [full tag table](https://docs.rs/clml) for every accepted spelling.
 
-## Features
+## The `anstream` feature
 
-- **default** — tags become ANSI escape sequences at compile time. No dependencies at runtime.
-- **`terminfo`** — query the terminfo database at runtime to pick the sequences, which helps on
-  some non-ANSI terminals. This adds a runtime cost, adds the
-  [`terminfo`](https://crates.io/crates/terminfo) dependency, and drops support for `<strike>`,
-  `<conceal>`, and the 256-color/true-color tags. `cstr!` is unavailable under this feature.
+By default the printing macros write to `std::io::stdout`/`stderr` and the escape codes go out
+verbatim. Enable the `anstream` feature to route them through
+[`anstream`](https://crates.io/crates/anstream) instead:
+
+```toml
+clml = { version = "0.1", features = ["anstream"] }
+```
+
+Call sites don't change. What changes is the destination: codes are stripped when stdout isn't a
+terminal, `NO_COLOR`/`CLICOLOR`/`CLICOLOR_FORCE` are honored, and legacy Windows consoles get
+console API calls instead of escape sequences.
+
+```console
+$ cargo run --example stream | cat -v
+^[[32m^[[1mFinished^[[39m^[[22m building ^[[36mclml^[[39m
+
+$ cargo run --example stream --features anstream | cat -v
+Finished building clml
+```
+
+This works because `cprintln!` expands to `clml::__private::println!`, which the feature re-points
+at `anstream`. Only the four printing macros are affected — `cformat!`, `cstr!`, and the `cwrite!`
+family produce values rather than writing to a stream, so they're unchanged.
 
 ## License
 

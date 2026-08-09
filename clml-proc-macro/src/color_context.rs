@@ -16,29 +16,12 @@ impl<'a> Context<'a> {
         Self::default()
     }
 
-    /// Applies a group of tags to the current context, and returns a list of the terminfo
-    /// constants (available in the `clml` package) to be added as named arguments at the
-    /// end of the format arguments.
-    ///
-    /// For each given tag:
-    ///  - if the tag is an open tag, push it into the context;
-    ///  - if it's a valid close tag, pop the last open tag.
-    #[cfg(feature = "terminfo")]
-    pub fn terminfo_apply_tags(
-        &mut self,
-        tag_group: Vec<ColorTag<'a>>,
-    ) -> Result<Vec<String>, SpanError> {
-        let state_diff = self.apply_tags_and_get_diff(tag_group)?;
-        Ok(state_diff.terminfo_token_streams())
-    }
-
     /// Applies a group of tags to the current context, and returns the ANSI sequences to be
     /// added into the format string.
     ///
     /// For each given tag:
     ///  - if the tag is an open tag, push it into the context;
     ///  - if it's a valid close tag, pop the last open tag.
-    #[cfg(not(feature = "terminfo"))]
     pub fn ansi_apply_tags(&mut self, tag_group: Vec<ColorTag<'a>>) -> Result<String, SpanError> {
         let state_diff = self.apply_tags_and_get_diff(tag_group)?;
         Ok(state_diff.ansi_string())
@@ -77,8 +60,7 @@ impl<'a> Context<'a> {
         state
     }
 
-    #[allow(rustdoc::broken_intra_doc_links)]
-    /// Common code betwwen [Self::terminfo_apply_tag()] and [Self::ansi_apply_tag()].
+    /// Common code between [`Self::ansi_apply_tags()`] and [`Self::apply_tags()`].
     fn apply_tags_and_get_diff(&mut self, tags: Vec<ColorTag<'a>>) -> Result<StateDiff, SpanError> {
         let old_state = self.state();
 
@@ -144,10 +126,8 @@ pub struct StateDiff {
     underline: Action<bool>,
     italics: Action<bool>,
     blink: Action<bool>,
-    #[cfg(not(feature = "terminfo"))]
     strike: Action<bool>,
     reverse: Action<bool>,
-    #[cfg(not(feature = "terminfo"))]
     conceal: Action<bool>,
 }
 
@@ -162,96 +142,14 @@ impl StateDiff {
             underline: Action::from_diff(Some(old.underline), Some(new.underline)),
             italics: Action::from_diff(Some(old.italics), Some(new.italics)),
             blink: Action::from_diff(Some(old.blink), Some(new.blink)),
-            #[cfg(not(feature = "terminfo"))]
             strike: Action::from_diff(Some(old.strike), Some(new.strike)),
             reverse: Action::from_diff(Some(old.reverse), Some(new.reverse)),
-            #[cfg(not(feature = "terminfo"))]
             conceal: Action::from_diff(Some(old.conceal), Some(new.conceal)),
         }
     }
 
-    /// Returns the list of terminfo constants (available in the `clml` package) which have
-    /// to be used in order to reach the new state.
-    #[cfg(feature = "terminfo")]
-    pub fn terminfo_token_streams(&self) -> Vec<String> {
-        let mut constants = vec![];
-
-        macro_rules! push_constant {
-            ($s:expr) => {{
-                constants.push($s.to_owned());
-            }};
-        }
-
-        let have_to_reset = or!(
-            matches!(self.foreground, Action::Change(ExtColor::Normal)),
-            matches!(self.background, Action::Change(ExtColor::Normal)),
-            matches!(self.bold, Action::Change(false)),
-            matches!(self.dim, Action::Change(false)),
-            matches!(self.blink, Action::Change(false)),
-            matches!(self.reverse, Action::Change(false)),
-        );
-
-        if have_to_reset {
-            push_constant!("CLEAR");
-            if let Some(ExtColor::Color(Color::Color16(color))) = self.foreground.actual_value() {
-                push_constant!(color.terminfo_constant(true));
-            }
-            if let Some(ExtColor::Color(Color::Color16(color))) = self.background.actual_value() {
-                push_constant!(color.terminfo_constant(false));
-            }
-            if matches!(self.bold.actual_value(), Some(true)) {
-                push_constant!("BOLD");
-            }
-            if matches!(self.dim.actual_value(), Some(true)) {
-                push_constant!("DIM");
-            }
-            if matches!(self.blink.actual_value(), Some(true)) {
-                push_constant!("BLINK");
-            }
-            if matches!(self.underline.actual_value(), Some(true)) {
-                push_constant!("UNDERLINE");
-            }
-            if matches!(self.italics.actual_value(), Some(true)) {
-                push_constant!("ITALICS");
-            }
-            if matches!(self.reverse.actual_value(), Some(true)) {
-                push_constant!("REVERSE");
-            }
-        } else {
-            if let Action::Change(ExtColor::Color(Color::Color16(ref color))) = self.foreground {
-                push_constant!(color.terminfo_constant(true));
-            }
-            if let Action::Change(ExtColor::Color(Color::Color16(ref color))) = self.background {
-                push_constant!(color.terminfo_constant(false));
-            }
-            if let Action::Change(true) = self.bold {
-                push_constant!("BOLD");
-            }
-            if let Action::Change(true) = self.dim {
-                push_constant!("DIM");
-            }
-            if let Action::Change(true) = self.blink {
-                push_constant!("BLINK");
-            }
-            if let Action::Change(true) = self.reverse {
-                push_constant!("REVERSE");
-            }
-            if let Action::Change(underline) = self.underline {
-                let constant = if underline { "UNDERLINE" } else { "NO_UNDERLINE" };
-                push_constant!(constant);
-            }
-            if let Action::Change(italics) = self.italics {
-                let constant = if italics { "ITALICS" } else { "NO_ITALICS" };
-                push_constant!(constant);
-            }
-        }
-
-        constants
-    }
-
     /// Returns the ANSI sequence(s) which has to added to the format string in order to reach the
     /// new state.
-    #[cfg(not(feature = "terminfo"))]
     pub fn ansi_string(&self) -> String {
         use crate::ansi_constants::*;
 
@@ -329,22 +227,11 @@ impl StateDiff {
 pub enum Action<T> {
     /// Nothing has to be done, because this value was never modified.
     None,
-    /// This attribute has to be kept the same.
-    /// With the terminfo implementation, it's not possible to reset each style/color
-    /// independently, so we have to keep track of the values, even with the `Keep` variant.
+    /// This attribute has to be kept the same. The value is tracked even so, because reaching a
+    /// new state may require resetting and reapplying it.
     Keep(T),
     /// This attribute value has to be changed.
     Change(T),
-}
-
-#[cfg(feature = "terminfo")]
-impl<T> Action<T> {
-    pub fn actual_value(&self) -> Option<&T> {
-        match self {
-            Action::Keep(val) | Action::Change(val) => Some(val),
-            Action::None => None,
-        }
-    }
 }
 
 impl<T> Action<T>
@@ -595,23 +482,6 @@ impl Color16 {
         Self { base_color, intensity }
     }
 
-    /// Converts a color to a terminfo constant name (available in the `clml` package).
-    #[cfg(feature = "terminfo")]
-    pub fn terminfo_constant(&self, is_foreground: bool) -> String {
-        let mut constant = if is_foreground {
-            String::new()
-        } else {
-            "BG_".to_string()
-        };
-
-        if matches!(self.intensity, Intensity::Bright) {
-            constant.push_str("BRIGHT_");
-        }
-
-        constant.push_str(self.base_color.uppercase_str());
-
-        constant
-    }
 }
 
 /// The intensity of a terminal color.
@@ -647,7 +517,6 @@ pub enum BaseColor {
 
 impl BaseColor {
     /// Return the index of a color, in the same ordering as the ANSI color sequences.
-    #[cfg(not(feature = "terminfo"))]
     pub fn index(&self) -> u8 {
         match self {
             Self::Black => 0,
@@ -661,20 +530,6 @@ impl BaseColor {
         }
     }
 
-    /// Used to generate terminfo constants, see [`Color16::terminfo_constant()`].
-    #[cfg(feature = "terminfo")]
-    pub fn uppercase_str(&self) -> &'static str {
-        match self {
-            Self::Black => "BLACK",
-            Self::Red => "RED",
-            Self::Green => "GREEN",
-            Self::Yellow => "YELLOW",
-            Self::Blue => "BLUE",
-            Self::Magenta => "MAGENTA",
-            Self::Cyan => "CYAN",
-            Self::White => "WHITE",
-        }
-    }
 }
 
 /// A color in the 256-color palette.
@@ -691,86 +546,5 @@ pub struct ColorRgb {
 
 #[cfg(test)]
 mod tests {
-    #[cfg(feature = "terminfo")]
-    use super::*;
-    #[cfg(feature = "terminfo")]
-    use crate::parse::color_tag;
 
-    #[test]
-    #[cfg(feature = "terminfo")]
-    fn terminfo_apply_tag_to_context() {
-        let mut context = Context::new();
-
-        macro_rules! apply_tag {
-            ($s:expr) => {
-                context
-                    .terminfo_apply_tags(vec![color_tag($s).unwrap().1])
-                    .unwrap()
-            };
-        }
-
-        let constants = apply_tag!("<r>");
-        assert_eq!(constants, ["RED"]);
-        let constants = apply_tag!("</r>");
-        assert_eq!(constants, ["CLEAR"]);
-        let constants = apply_tag!("<r>");
-        assert_eq!(constants, ["RED"]);
-        let constants = apply_tag!("<s>");
-        assert_eq!(constants, ["BOLD"]);
-        let constants = apply_tag!("</s>");
-        assert_eq!(constants, ["CLEAR", "RED"]);
-        let constants = apply_tag!("</r>");
-        assert_eq!(constants, ["CLEAR"]);
-    }
-
-    #[test]
-    #[cfg(feature = "terminfo")]
-    fn terminfo_apply_tag_to_context_2() {
-        let mut context = Context::new();
-
-        macro_rules! apply_tag {
-            ($s:expr) => {
-                context
-                    .terminfo_apply_tags(vec![color_tag($s).unwrap().1])
-                    .unwrap()
-            };
-        }
-
-        let constants = apply_tag!("<r>");
-        assert_eq!(constants, ["RED"]);
-        let constants = apply_tag!("<Y>");
-        assert_eq!(constants, ["BG_YELLOW"]);
-        let constants = apply_tag!("<s>");
-        assert_eq!(constants, ["BOLD"]);
-        let constants = apply_tag!("<u>");
-        assert_eq!(constants, ["UNDERLINE"]);
-        let constants = apply_tag!("</u>");
-        assert_eq!(constants, ["NO_UNDERLINE"]);
-        let constants = apply_tag!("</s>");
-        assert_eq!(constants, ["CLEAR", "RED", "BG_YELLOW"]);
-    }
-
-    #[test]
-    #[cfg(feature = "terminfo")]
-    fn terminfo_apply_tag_to_context_3() {
-        let mut context = Context::new();
-
-        macro_rules! apply_tag {
-            ($s:expr) => {
-                context.terminfo_apply_tags(vec![color_tag($s).unwrap().1])
-            };
-        }
-
-        let res = apply_tag!("</r>");
-        assert_eq!(res, Err(SpanError::new(Error::NoTagToClose, None)));
-        apply_tag!("<r>").unwrap();
-        let res = apply_tag!("</s>");
-        assert_eq!(
-            res,
-            Err(SpanError::new(
-                Error::MismatchCloseTag("<r>".to_owned(), "</s>".to_owned()),
-                None
-            ))
-        );
-    }
 }

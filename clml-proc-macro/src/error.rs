@@ -60,8 +60,7 @@ pub enum Error {
     NoTagToClose,
     /// Trying to close a previous tag which does not match, like `<red>...</blue>`.
     MismatchCloseTag(String, String),
-    /// Only one argument is allowed for the `untagged!()` macro, and for `cstr!()` when the
-    /// `terminfo` feature is not activated.
+    /// Only one argument is allowed for the `cstr!()` and `untagged!()` macros.
     TooManyArgs,
 }
 

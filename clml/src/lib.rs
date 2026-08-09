@@ -51,16 +51,11 @@
 //! # }
 //! ```
 //!
-//! *Note*: it is possible to change this behaviour by activating the feature `terminfo`. Then it
-//! will question the `terminfo` database at runtime in order to know which sequence to write for
-//! each kind of styling/colorizing (see below for more detail).
-//!
 //! # Pros/cons of this crate
 //!
 //! ## Pros
 //!
-//! * Styling is processed at compile-time, so the runtime payload is  inexistant (unless the
-//!   feature `terminfo` is activated);
+//! * Styling is processed at compile-time, so there is no runtime payload;
 //! * Nested tags are well handled, e.g. `"<green>...<blue>...</blue>...</green>"`;
 //! * Some optimizations are performed to avoid redundant ANSI sequences, because these
 //!   optimizations can be done at compile-time without impacting the runtime;
@@ -186,28 +181,31 @@
 //! # }
 //! ```
 //!
-//! # The feature `terminfo`
+//! # The feature `anstream`
 //!
-//! Instead of inserting ANSI sequences directly into the format string, it is possible to activate
-//! the feature `terminfo`: this will add the format sequences at runtime, by consulting the
-//! `terminfo` database.
+//! By default the printing macros write to `std::io::stdout` / `stderr`, emitting the escape
+//! codes verbatim. Enabling the `anstream` feature routes them through
+//! [`anstream`](https://crates.io/crates/anstream)'s auto-adapting streams instead:
 //!
-//! This has one pro and several cons:
+//! ```toml
+//! clml = { version = "0.1", features = ["anstream"] }
+//! ```
 //!
-//! #### Pros
+//! Nothing changes at the call site — `cprintln!` and friends keep the same syntax — but the
+//! output now adapts to its destination:
 //!
-//! * This adds a level of compatibility for some terminals.
+//! * escape codes are stripped when stdout/stderr is not a terminal, so piped and redirected
+//!   output stays clean;
+//! * `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE` are honoured;
+//! * on legacy Windows consoles without virtual terminal processing, styling is translated into
+//!   console API calls.
 //!
-//! #### Cons
+//! Only [`cprint!()`], [`cprintln!()`], [`ceprint!()`] and [`ceprintln!()`] are affected.
+//! [`cformat!()`], [`cstr!()`] and the `cwrite!` macros produce values rather than writing to a
+//! stream, so they are unchanged; pass their output to an [`anstream::AutoStream`] yourself if you
+//! need the same adaptation.
 //!
-//! * This adds a little runtime payload;
-//! * This adds a dependency: [`terminfo`];
-//! * The styles `<strike>` and `<conceal>` are not handled;
-//! * With `terminfo`, many styles are not resettable individually, which implies longer format
-//!   sequences for the same result;
-//! * For now, the provided macros can only be used in one thread.
-//!
-//! [`terminfo`]: https://crates.io/crates/terminfo
+//! [`anstream::AutoStream`]: https://docs.rs/anstream/latest/anstream/struct.AutoStream.html
 //!
 //! # Naming rules of the tags:
 //!
@@ -234,75 +232,108 @@
 //!
 //! # List of accepted tags:
 //!
-//! The two first columns show which styles are supported, respectively with the default crate
-//! features (ANSI column), and with the feature `terminfo` being activated.
+//! Every tag below is supported; each has a long name, and most have a shortcut and aliases.
 //!
-//! | ANSI | Terminfo | Shortcuts | Long names              | Aliases                                         |
-//! | ---- | -------- | --------- | ----------------------- | ----------------------------------------------- |
-//! | X    | X        | `<s>`     | `<strong>`              | `<em>` `<bold>`                                 |
-//! | X    | X        |           | `<dim>`                 |                                                 |
-//! | X    | X        | `<u>`     | `<underline>`           |                                                 |
-//! | X    |          |           | `<strike>`              |                                                 |
-//! | X    | X        |           | `<reverse>`             | `<rev>`                                         |
-//! | X    |          |           | `<conceal>`             | `<hide>`                                        |
-//! | X    | X        | `<i>`     | `<italics>`             | `<italic>`                                      |
-//! | X    | X        |           | `<blink>`               |                                                 |
-//! | X    | X        | `<k>`     | `<black>`               |                                                 |
-//! | X    | X        | `<r>`     | `<red>`                 |                                                 |
-//! | X    | X        | `<g>`     | `<green>`               |                                                 |
-//! | X    | X        | `<y>`     | `<yellow>`              |                                                 |
-//! | X    | X        | `<b>`     | `<blue>`                |                                                 |
-//! | X    | X        | `<m>`     | `<magenta>`             |                                                 |
-//! | X    | X        | `<c>`     | `<cyan>`                |                                                 |
-//! | X    | X        | `<w>`     | `<white>`               |                                                 |
-//! | X    | X        | `<k!>`    | `<bright-black>`        | `<black!>`                                      |
-//! | X    | X        | `<r!>`    | `<bright-red>`          | `<red!>`                                        |
-//! | X    | X        | `<g!>`    | `<bright-green>`        | `<green!>`                                      |
-//! | X    | X        | `<y!>`    | `<bright-yellow>`       | `<yellow!>`                                     |
-//! | X    | X        | `<b!>`    | `<bright-blue>`         | `<blue!>`                                       |
-//! | X    | X        | `<m!>`    | `<bright-magenta>`      | `<magenta!>`                                    |
-//! | X    | X        | `<c!>`    | `<bright-cyan>`         | `<cyan!>`                                       |
-//! | X    | X        | `<w!>`    | `<bright-white>`        | `<white!>`                                      |
-//! | X    | X        | `<K>`     | `<bg:black>`            | `<BLACK>`                                       |
-//! | X    | X        | `<R>`     | `<bg:red>`              | `<RED>`                                         |
-//! | X    | X        | `<G>`     | `<bg:green>`            | `<GREEN>`                                       |
-//! | X    | X        | `<Y>`     | `<bg:yellow>`           | `<YELLOW>`                                      |
-//! | X    | X        | `<B>`     | `<bg:blue>`             | `<BLUE>`                                        |
-//! | X    | X        | `<M>`     | `<bg:magenta>`          | `<MAGENTA>`                                     |
-//! | X    | X        | `<C>`     | `<bg:cyan>`             | `<CYAN>`                                        |
-//! | X    | X        | `<W>`     | `<bg:white>`            | `<WHITE>`                                       |
-//! | X    | X        | `<K!>`    | `<bg:bright-black>`     | `<BLACK!>` `<bg:black!>` `<BRIGHT-BLACK>`       |
-//! | X    | X        | `<R!>`    | `<bg:bright-red>`       | `<RED!>` `<bg:red!>` `<BRIGHT-RED>`             |
-//! | X    | X        | `<G!>`    | `<bg:bright-green>`     | `<GREEN!>` `<bg:green!>` `<BRIGHT-GREEN>`       |
-//! | X    | X        | `<Y!>`    | `<bg:bright-yellow>`    | `<YELLOW!>` `<bg:yellow!>` `<BRIGHT-YELLOW>`    |
-//! | X    | X        | `<B!>`    | `<bg:bright-blue>`      | `<BLUE!>` `<bg:blue!>` `<BRIGHT-BLUE>`          |
-//! | X    | X        | `<M!>`    | `<bg:bright-magenta>`   | `<MAGENTA!>` `<bg:magenta!>` `<BRIGHT-MAGENTA>` |
-//! | X    | X        | `<C!>`    | `<bg:bright-cyan>`      | `<CYAN!>` `<bg:cyan!>` `<BRIGHT-CYAN>`          |
-//! | X    | X        | `<W!>`    | `<bg:bright-white>`     | `<WHITE!>` `<bg:white!>` `<BRIGHT-WHITE>`       |
-//! | X    |          |           | `<rgb(r,g,b)>`          | `<#RRGGBB>`                                     |
-//! | X    |          |           | `<bg:rgb(r,g,b)>`       | `<bg:#RRGGBB>` `<RGB(r,g,b)>`                   |
-//! | X    |          | `<0>`...`<255>` | `<palette(...)>`  | `<p(...)>` `<pal(...)>`                         |
-//! | X    |          | `<P(...)>` | `<bg:palette(...)>` | `<PALETTE(...)>` `<PAL(...)>` `<bg:p(...)>` `<bg:pal(...)>` |
+//! | Shortcuts       | Long names            | Aliases                                                     |
+//! |-----------------|-----------------------|-------------------------------------------------------------|
+//! | `<s>`           | `<strong>`            | `<em>` `<bold>`                                             |
+//! |                 | `<dim>`               |                                                             |
+//! | `<u>`           | `<underline>`         |                                                             |
+//! |                 | `<strike>`            |                                                             |
+//! |                 | `<reverse>`           | `<rev>`                                                     |
+//! |                 | `<conceal>`           | `<hide>`                                                    |
+//! | `<i>`           | `<italics>`           | `<italic>`                                                  |
+//! |                 | `<blink>`             |                                                             |
+//! | `<k>`           | `<black>`             |                                                             |
+//! | `<r>`           | `<red>`               |                                                             |
+//! | `<g>`           | `<green>`             |                                                             |
+//! | `<y>`           | `<yellow>`            |                                                             |
+//! | `<b>`           | `<blue>`              |                                                             |
+//! | `<m>`           | `<magenta>`           |                                                             |
+//! | `<c>`           | `<cyan>`              |                                                             |
+//! | `<w>`           | `<white>`             |                                                             |
+//! | `<k!>`          | `<bright-black>`      | `<black!>`                                                  |
+//! | `<r!>`          | `<bright-red>`        | `<red!>`                                                    |
+//! | `<g!>`          | `<bright-green>`      | `<green!>`                                                  |
+//! | `<y!>`          | `<bright-yellow>`     | `<yellow!>`                                                 |
+//! | `<b!>`          | `<bright-blue>`       | `<blue!>`                                                   |
+//! | `<m!>`          | `<bright-magenta>`    | `<magenta!>`                                                |
+//! | `<c!>`          | `<bright-cyan>`       | `<cyan!>`                                                   |
+//! | `<w!>`          | `<bright-white>`      | `<white!>`                                                  |
+//! | `<K>`           | `<bg:black>`          | `<BLACK>`                                                   |
+//! | `<R>`           | `<bg:red>`            | `<RED>`                                                     |
+//! | `<G>`           | `<bg:green>`          | `<GREEN>`                                                   |
+//! | `<Y>`           | `<bg:yellow>`         | `<YELLOW>`                                                  |
+//! | `<B>`           | `<bg:blue>`           | `<BLUE>`                                                    |
+//! | `<M>`           | `<bg:magenta>`        | `<MAGENTA>`                                                 |
+//! | `<C>`           | `<bg:cyan>`           | `<CYAN>`                                                    |
+//! | `<W>`           | `<bg:white>`          | `<WHITE>`                                                   |
+//! | `<K!>`          | `<bg:bright-black>`   | `<BLACK!>` `<bg:black!>` `<BRIGHT-BLACK>`                   |
+//! | `<R!>`          | `<bg:bright-red>`     | `<RED!>` `<bg:red!>` `<BRIGHT-RED>`                         |
+//! | `<G!>`          | `<bg:bright-green>`   | `<GREEN!>` `<bg:green!>` `<BRIGHT-GREEN>`                   |
+//! | `<Y!>`          | `<bg:bright-yellow>`  | `<YELLOW!>` `<bg:yellow!>` `<BRIGHT-YELLOW>`                |
+//! | `<B!>`          | `<bg:bright-blue>`    | `<BLUE!>` `<bg:blue!>` `<BRIGHT-BLUE>`                      |
+//! | `<M!>`          | `<bg:bright-magenta>` | `<MAGENTA!>` `<bg:magenta!>` `<BRIGHT-MAGENTA>`             |
+//! | `<C!>`          | `<bg:bright-cyan>`    | `<CYAN!>` `<bg:cyan!>` `<BRIGHT-CYAN>`                      |
+//! | `<W!>`          | `<bg:bright-white>`   | `<WHITE!>` `<bg:white!>` `<BRIGHT-WHITE>`                   |
+//! |                 | `<rgb(r,g,b)>`        | `<#RRGGBB>`                                                 |
+//! |                 | `<bg:rgb(r,g,b)>`     | `<bg:#RRGGBB>` `<RGB(r,g,b)>`                               |
+//! | `<0>`...`<255>` | `<palette(...)>`      | `<p(...)>` `<pal(...)>`                                     |
+//! | `<P(...)>`      | `<bg:palette(...)>`   | `<PALETTE(...)>` `<PAL(...)>` `<bg:p(...)>` `<bg:pal(...)>` |
 
-pub use clml_proc_macro::{
-    ceprint, ceprintln, cformat, cprint, cprintln, cstr, cwrite, cwriteln, untagged,
-};
+pub use clml_proc_macro::{cformat, cstr, cwrite, cwriteln, untagged};
 
-#[cfg(feature = "terminfo")]
-mod terminfo;
-#[cfg(feature = "terminfo")]
-pub use terminfo::*;
+/// The same as `print!()`, but parses color tags.
+///
+/// Writes through [`__private`], so the `anstream` feature applies.
+#[macro_export]
+macro_rules! cprint {
+    ($($arg:tt)*) => { $crate::__private::print!("{}", $crate::cformat!($($arg)*)) };
+}
+
+/// The same as `println!()`, but parses color tags.
+///
+/// Writes through [`__private`], so the `anstream` feature applies.
+#[macro_export]
+macro_rules! cprintln {
+    ($($arg:tt)*) => { $crate::__private::println!("{}", $crate::cformat!($($arg)*)) };
+}
+
+/// The same as `eprint!()`, but parses color tags.
+///
+/// Writes through [`__private`], so the `anstream` feature applies.
+#[macro_export]
+macro_rules! ceprint {
+    ($($arg:tt)*) => { $crate::__private::eprint!("{}", $crate::cformat!($($arg)*)) };
+}
+
+/// The same as `eprintln!()`, but parses color tags.
+///
+/// Writes through [`__private`], so the `anstream` feature applies.
+#[macro_export]
+macro_rules! ceprintln {
+    ($($arg:tt)*) => { $crate::__private::eprintln!("{}", $crate::cformat!($($arg)*)) };
+}
+
+/// Implementation detail of the printing macros. Not part of the public API.
+///
+/// `cprint!` and friends expand to `$crate::__private::print!(..)` rather than `std::print!(..)`,
+/// which is what lets the `anstream` feature re-point them at an auto-adapting stream without
+/// changing anything at the call site. Going through `$crate` also means the expansion keeps
+/// working when the dependency is renamed (`mycolor = { package = "clml" }`).
+#[doc(hidden)]
+pub mod __private {
+    #[cfg(feature = "anstream")]
+    pub use anstream::{eprint, eprintln, print, println};
+    #[cfg(not(feature = "anstream"))]
+    pub use std::{eprint, eprintln, print, println};
+}
 
 #[cfg(test)]
 mod tests {
     use std::fmt::Write as _;
 
     use super::*;
-
-    #[cfg(feature = "terminfo")]
-    pub mod clml {
-        pub use super::*;
-    }
 
     #[test]
     fn format_no_arg() {
@@ -336,7 +367,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "terminfo"))]
     #[rustfmt::skip]
     fn format_basic() {
         assert_eq!(cformat!("<red>Hi</red>"), "\u{1b}[31mHi\u{1b}[39m");
@@ -388,7 +418,6 @@ mod tests {
 
     #[test]
     #[ignore]
-    #[cfg(not(feature = "terminfo"))]
     fn bold_and_dim_should_be_optimized() {
         assert_eq!(
             cformat!("<bold>BOLD</><dim>DIM</>"),
@@ -397,7 +426,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "terminfo"))]
     fn format_multiple() {
         assert_eq!(
             cformat!("Hi <bold>word</bold> <red>red</red> !"),
@@ -406,7 +434,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "terminfo"))]
     fn format_optimization() {
         assert_eq!(
             cformat!("<red>RED<blue>BLUE</>RED</>"),
@@ -420,7 +447,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(feature = "terminfo"))]
     #[rustfmt::skip]
     fn format_auto_close_tag() {
         assert_eq!(
@@ -431,42 +457,6 @@ mod tests {
             cformat!("<red>RED<em>BOLD") == "\u{1b}[31mRED\u{1b}[1mBOLD\u{1b}[22m\u{1b}[39m"
             ||
             cformat!("<red>RED<em>BOLD") == "\u{1b}[31mRED\u{1b}[1mBOLD\u{1b}[39m\u{1b}[22m"
-        );
-    }
-
-    #[test]
-    #[cfg(feature = "terminfo")]
-    fn terminfo_format_basic() {
-        assert_eq!(cformat!("<red>Hi</red>"), format!("{}Hi{}", *RED, *CLEAR));
-        assert_eq!(
-            cformat!("Hi <bold>word</bold> !"),
-            format!("Hi {}word{} !", *BOLD, *CLEAR)
-        );
-
-        let mut s = String::new();
-        cwrite!(&mut s, "<r>Hi</> {}", 12).unwrap();
-        assert_eq!(s, format!("{}Hi{} 12", *RED, *CLEAR));
-    }
-
-    #[test]
-    #[cfg(feature = "terminfo")]
-    fn terminfo_format_multiple() {
-        assert_eq!(
-            cformat!("Hi <bold>word</bold> <red>red</red> !"),
-            format!("Hi {}word{} {}red{} !", *BOLD, *CLEAR, *RED, *CLEAR)
-        );
-    }
-
-    #[test]
-    #[cfg(feature = "terminfo")]
-    fn terminfo_format_auto_close_tag() {
-        assert_eq!(
-            cformat!("<red>RED<blue>BLUE"),
-            format!("{}RED{}BLUE{}", *RED, *BLUE, *CLEAR)
-        );
-        assert_eq!(
-            cformat!("<red>RED<em>BOLD"),
-            format!("{}RED{}BOLD{}", *RED, *BOLD, *CLEAR)
         );
     }
 
@@ -504,21 +494,13 @@ mod tests {
         assert_eq!(wrapped_cformat!("<red>{msg}</red> {msg}").matches(msg).count(), 2);
         assert_eq!(wrapped_untagged!("<red>hi</red>"), "hi");
 
-        #[cfg(not(feature = "terminfo"))]
-        {
-            macro_rules! wrapped_cstr {
-                ($($arg:tt)*) => { cstr!($($arg)*) };
-            }
-            assert_eq!(
-                wrapped_cformat!("<red>{msg}</red>"),
-                "\u{1b}[31mhello\u{1b}[39m"
-            );
-            assert_eq!(wrapped_cstr!("<red>hi</red>"), "\u{1b}[31mhi\u{1b}[39m");
+        macro_rules! wrapped_cstr {
+            ($($arg:tt)*) => { cstr!($($arg)*) };
         }
-        #[cfg(feature = "terminfo")]
         assert_eq!(
             wrapped_cformat!("<red>{msg}</red>"),
-            format!("{}hello{}", *RED, *CLEAR)
+            "\u{1b}[31mhello\u{1b}[39m"
         );
+        assert_eq!(wrapped_cstr!("<red>hi</red>"), "\u{1b}[31mhi\u{1b}[39m");
     }
 }

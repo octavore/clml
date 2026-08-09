@@ -10,14 +10,6 @@ macro_rules! and {
     };
 }
 
-/// Joins the arguments with `||` operators.
-#[cfg(feature = "terminfo")]
-macro_rules! or {
-    ($($expr:expr),* $(,)?) => {
-        $($expr)||*
-    };
-}
-
 /// Creates a new [`Ident`] which can be tokenized.
 pub fn ident(s: &str) -> Ident {
     Ident::new(s, Span::call_site())

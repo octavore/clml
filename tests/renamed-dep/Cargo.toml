@@ -1,0 +1,11 @@
+[package]
+name = "renamed-dep"
+description = "Checks that the macros work when the `clml` dependency is renamed"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[dependencies]
+# Deliberately renamed: the macros must not rely on the dependency being called `clml`.
+mycolor = { package = "clml", path = "../../clml" }
