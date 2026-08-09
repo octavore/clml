@@ -37,7 +37,7 @@ pub fn inner_span<'a>(input: &'a str, input_lit_str: &LitStr, inside: &'a str) -
 /// `Span` itself has no public `subspan` method; only `Literal` does. So we stash `span` onto a
 /// throwaway literal and delegate to its `subspan` instead.
 fn subspan<R: RangeBounds<usize>>(span: Span, range: R) -> Option<Span> {
-    let mut lit = proc_macro2::Literal::i8_suffixed(0); // wtf...
+    let mut lit = proc_macro2::Literal::string("");
     lit.set_span(span);
     lit.subspan(range)
 }
