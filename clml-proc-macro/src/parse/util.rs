@@ -1,9 +1,9 @@
+use nom::Err;
 use nom::bytes::complete::tag;
 use nom::character::complete::{alpha1, multispace0};
 use nom::combinator::{map, opt};
 use nom::error::ErrorKind;
 use nom::sequence::{delimited, preceded};
-use nom::Err;
 
 use super::{Error, ErrorDetail, Input, Parser, Result};
 
@@ -13,10 +13,12 @@ where
     P: Parser<'a, V>,
 {
     move |input: Input<'a>| {
-        parser.parse(input).map_err(|nom_err: Err<Error<'a>>| match nom_err {
-            Err::Error(e) => Err::Failure(e.with_detail(ErrorDetail::new(input, message))),
-            e => e,
-        })
+        parser
+            .parse(input)
+            .map_err(|nom_err: Err<Error<'a>>| match nom_err {
+                Err::Error(e) => Err::Failure(e.with_detail(ErrorDetail::new(input, message))),
+                e => e,
+            })
     }
 }
 
@@ -33,10 +35,12 @@ where
 {
     move |input: Input<'a>| {
         check_parser.parse(input)?;
-        parser.parse(input).map_err(|nom_err: Err<Error<'a>>| match nom_err {
-            Err::Error(e) => Err::Failure(e.with_detail(ErrorDetail::new(input, failure_msg))),
-            e => e,
-        })
+        parser
+            .parse(input)
+            .map_err(|nom_err: Err<Error<'a>>| match nom_err {
+                Err::Error(e) => Err::Failure(e.with_detail(ErrorDetail::new(input, failure_msg))),
+                e => e,
+            })
     }
 }
 
@@ -77,8 +81,8 @@ where
     )
 }
 
-/// Parses a word made only by alpha characters ('a' => 'z' and 'A' => 'Z'), and checks if this
-/// word matches exactly the given parser.
+/// Parses a word made only by alpha characters ('a' => 'z' and 'A' => 'Z'), and checks if this word
+/// matches exactly the given parser.
 pub fn word<'a, P>(mut word_parser: P) -> impl Parser<'a, &'a str>
 where
     P: Parser<'a, &'a str>,
@@ -92,7 +96,7 @@ where
                 } else {
                     Err(Err::Error(Error::new(input, ErrorKind::Alpha, None)))
                 }
-            }
+            },
             Err(e) => Err(e),
         }
     }

@@ -27,7 +27,11 @@ pub const SET_BRIGHT_BACKGROUND_BASE: u8 = 100;
 
 /// Generate an SGR ANSI sequence.
 pub fn generate_ansi_code(params: &[u8]) -> String {
-    let params = params.iter().map(u8::to_string).collect::<Vec<_>>().join(";");
+    let params = params
+        .iter()
+        .map(u8::to_string)
+        .collect::<Vec<_>>()
+        .join(";");
     format!("\u{1b}[{params}m")
 }
 
@@ -50,7 +54,10 @@ mod tests {
 
     #[test]
     fn osc8_link() {
-        assert_eq!(generate_osc8_link("https://example.com"), "\u{1b}]8;;https://example.com\u{1b}\\");
+        assert_eq!(
+            generate_osc8_link("https://example.com"),
+            "\u{1b}]8;;https://example.com\u{1b}\\"
+        );
         assert_eq!(generate_osc8_link(""), "\u{1b}]8;;\u{1b}\\");
     }
 }

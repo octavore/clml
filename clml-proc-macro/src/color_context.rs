@@ -16,8 +16,8 @@ impl<'a> Context<'a> {
         Self::default()
     }
 
-    /// Applies a group of tags to the current context, and returns the ANSI sequences to be
-    /// added into the format string.
+    /// Applies a group of tags to the current context, and returns the ANSI sequences to be added
+    /// into the format string.
     ///
     /// For each given tag:
     ///  - if the tag is an open tag, push it into the context;
@@ -27,8 +27,8 @@ impl<'a> Context<'a> {
         Ok(state_diff.ansi_string())
     }
 
-    /// Applies a group of tags to the current context, with no return on success. Used by the
-    /// macro `untagged!()`.
+    /// Applies a group of tags to the current context, with no return on success. Used by the macro
+    /// `untagged!()`.
     ///
     /// For each given tag:
     ///  - if the tag is an open tag, push it into the context;
@@ -69,7 +69,9 @@ impl<'a> Context<'a> {
 
         for tag in tags {
             if tag.is_close {
-                let last_tag = self.0.last()
+                let last_tag = self
+                    .0
+                    .last()
                     .ok_or_else(|| SpanError::new(Error::NoTagToClose, tag.span))?;
                 // If the tag is "void" (it is a "</>" tag), we don't need to check if the change
                 // sets are matching:
@@ -80,8 +82,9 @@ impl<'a> Context<'a> {
                         // from the source input:
                         last_tag.source.unwrap(),
                         // We can unwrap the source of the tag currently being processed, because
-                        // we just checked above that the tag is not void, and non-void tags are
-                        // always taken from the source input:
+                        // we just checked above that the tag is not void,
+                        // and non-void tags are always taken from the
+                        // source input:
                         tag.source.unwrap(),
                     );
                     return Err(SpanError::new(
@@ -100,8 +103,8 @@ impl<'a> Context<'a> {
     }
 }
 
-/// Describes the state of each color and style attributes at a given position in the format
-/// string. Two states can be compared together by creating a [`StateDiff`] instance.
+/// Describes the state of each color and style attributes at a given position in the format string.
+/// Two states can be compared together by creating a [`StateDiff`] instance.
 #[derive(Debug, PartialEq, Default)]
 pub struct State {
     foreground: ExtColor,
@@ -140,8 +143,14 @@ impl StateDiff {
     /// Creates a new [`StateDiff`] by comparing two [`State`]s.
     pub fn from_diff(old: &State, new: &State) -> Self {
         StateDiff {
-            foreground: Action::from_diff(Some(old.foreground.clone()), Some(new.foreground.clone())),
-            background: Action::from_diff(Some(old.background.clone()), Some(new.background.clone())),
+            foreground: Action::from_diff(
+                Some(old.foreground.clone()),
+                Some(new.foreground.clone()),
+            ),
+            background: Action::from_diff(
+                Some(old.background.clone()),
+                Some(new.background.clone()),
+            ),
             bold: Action::from_diff(Some(old.bold), Some(new.bold)),
             dim: Action::from_diff(Some(old.dim), Some(new.dim)),
             underline: Action::from_diff(Some(old.underline), Some(new.underline)),
@@ -171,10 +180,10 @@ impl StateDiff {
                 ExtColor::Color(Color::Color16(color)) => match color.intensity {
                     Intensity::Normal => {
                         push_code!(SET_FOREGROUND_BASE + color.base_color.index())
-                    }
+                    },
                     Intensity::Bright => {
                         push_code!(SET_BRIGHT_FOREGROUND_BASE + color.base_color.index())
-                    }
+                    },
                 },
                 ExtColor::Color(Color::Color256(color)) => {
                     push_code!(SET_FOREGROUND, 5, color.0);
@@ -191,10 +200,10 @@ impl StateDiff {
                 ExtColor::Color(Color::Color16(color)) => match color.intensity {
                     Intensity::Normal => {
                         push_code!(SET_BACKGROUND_BASE + color.base_color.index())
-                    }
+                    },
                     Intensity::Bright => {
                         push_code!(SET_BRIGHT_BACKGROUND_BASE + color.base_color.index())
-                    }
+                    },
                 },
                 ExtColor::Color(Color::Color256(color)) => {
                     push_code!(SET_BACKGROUND, 5, color.0);
@@ -240,8 +249,8 @@ impl StateDiff {
 pub enum Action<T> {
     /// Nothing has to be done, because this value was never modified.
     None,
-    /// This attribute has to be kept the same. The value is tracked even so, because reaching a
-    /// new state may require resetting and reapplying it.
+    /// This attribute has to be kept the same. The value is tracked even so, because reaching a new
+    /// state may require resetting and reapplying it.
     Keep(T),
     /// This attribute value has to be changed.
     Change(T),
@@ -371,8 +380,8 @@ impl From<&[Change]> for ChangeSet {
     }
 }
 
-/// A single change to be done inside a tag. Tags with multiple keywords like `<red;bold>` will
-/// have multiple [`Change`]s.
+/// A single change to be done inside a tag. Tags with multiple keywords like `<red;bold>` will have
+/// multiple [`Change`]s.
 #[derive(Debug, PartialEq, Clone)]
 pub enum Change {
     Foreground(Color),
@@ -497,9 +506,11 @@ pub struct Color16 {
 
 impl Color16 {
     pub fn new(base_color: BaseColor, intensity: Intensity) -> Self {
-        Self { base_color, intensity }
+        Self {
+            base_color,
+            intensity,
+        }
     }
-
 }
 
 /// The intensity of a terminal color.
@@ -547,7 +558,6 @@ impl BaseColor {
             Self::White => 7,
         }
     }
-
 }
 
 /// A color in the 256-color palette.
@@ -563,6 +573,4 @@ pub struct ColorRgb {
 }
 
 #[cfg(test)]
-mod tests {
-
-}
+mod tests {}

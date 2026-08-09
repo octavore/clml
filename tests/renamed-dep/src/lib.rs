@@ -1,12 +1,12 @@
 //! `clml` is pulled in here under the name `mycolor`.
 //!
-//! The printing macros expand to `$crate::__private::..`, which the compiler resolves to the
-//! defining crate regardless of the local alias. A hardcoded `clml::..` path would fail to
-//! compile in this crate.
+//! The printing macros expand to `$crate::__private::..`, which the compiler
+//! resolves to the defining crate regardless of the local alias. A hardcoded
+//! `clml::..` path would fail to compile in this crate.
 
 #[cfg(test)]
 mod tests {
-    use mycolor::{cformat, ceprintln, cprint, cprintln};
+    use mycolor::{ceprintln, cformat, cprint, cprintln};
 
     #[test]
     fn printing_macros_work_under_a_renamed_dependency() {

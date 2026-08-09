@@ -76,7 +76,7 @@ impl fmt::Display for Error {
             Self::NoTagToClose => "No color tag to close".to_owned(),
             Self::MismatchCloseTag(tag1, tag2) => {
                 format!("Mismatch close tag between {tag1} and {tag2}")
-            }
+            },
             Self::TooManyArgs => "Too many arguments".to_owned(),
         };
         write!(f, "{msg}")

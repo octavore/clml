@@ -8,8 +8,8 @@
 //! ```
 //!
 //! Without the feature the macros write to `std::io::stdout` and the ANSI codes go out verbatim.
-//! With it they write through `anstream::AutoStream`, which strips them when the destination is
-//! not a terminal (and honours `NO_COLOR`, `CLICOLOR`, and legacy Windows consoles).
+//! With it they write through `anstream::AutoStream`, which strips them when the destination is not
+//! a terminal (and honours `NO_COLOR`, `CLICOLOR`, and legacy Windows consoles).
 
 use clml::cprintln;
 

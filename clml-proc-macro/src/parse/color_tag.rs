@@ -1,20 +1,19 @@
 use std::borrow::Cow;
 
-use nom::{
-    Err,
-    branch::alt,
-    bytes::complete::{tag, take_till1, take_while_m_n},
-    character::complete::{space0, alphanumeric1, alpha1, u8, digit1},
-    combinator::{consumed, map, map_res},
-    multi::separated_list1,
-    sequence::{delimited, preceded, pair, terminated}, error::ErrorKind,
-    Parser as _,
-};
+use nom::branch::alt;
+use nom::bytes::complete::{tag, take_till1, take_while_m_n};
+use nom::character::complete::{alpha1, alphanumeric1, digit1, space0, u8};
+use nom::combinator::{consumed, map, map_res};
+use nom::error::ErrorKind;
+use nom::multi::separated_list1;
+use nom::sequence::{delimited, pair, preceded, terminated};
+use nom::{Err, Parser as _};
 
-use super::{Input, Result, Error, Parser, ErrorDetail};
 use super::util::*;
+use super::{Error, ErrorDetail, Input, Parser, Result};
 use crate::color_context::{
-    Change, ChangeSet, Color, Color16, Color256, ColorRgb, ColorTag, ColorKind, BaseColor, Intensity,
+    BaseColor, Change, ChangeSet, Color, Color16, Color256, ColorKind, ColorRgb, ColorTag,
+    Intensity,
 };
 
 /// Indicates wether a colored is specified by the prefix "fg:" or "bg:".
@@ -41,38 +40,32 @@ enum Case {
 /// Parses a color tag.
 pub fn color_tag(input: Input<'_>) -> Result<'_, ColorTag<'_>> {
     let tag = alt((
-        map(
-            (tag("</"), space0, tag(">")),
-            |_| (true, vec![])
-        ),
+        map((tag("</"), space0, tag(">")), |_| (true, vec![])),
         delimited(
             tag("<"),
             alt((
                 map(
                     preceded(tag("/"), spaced(separated_list1(stag(","), spaced(attr)))),
-                    |attrs| (true, attrs)
+                    |attrs| (true, attrs),
                 ),
-                map(
-                    separated_list1(stag(","), spaced(attr)),
-                    |attrs| (false, attrs)
-                ),
+                map(separated_list1(stag(","), spaced(attr)), |attrs| {
+                    (false, attrs)
+                }),
             )),
             tag(">"),
         ),
     ));
 
     with_failure_message(
-        map(
-            consumed(tag),
-            |(source, (is_close, changes))| ColorTag {
-                source: Some(source),
-                span: None,
-                is_close,
-                change_set: ChangeSet::from(changes.as_ref()),
-            }
-        ),
-        "Unable to parse this tag"
-    ).parse(input)
+        map(consumed(tag), |(source, (is_close, changes))| ColorTag {
+            source: Some(source),
+            span: None,
+            is_close,
+            change_set: ChangeSet::from(changes.as_ref()),
+        }),
+        "Unable to parse this tag",
+    )
+    .parse(input)
 }
 
 /// Parses any attributes inside a color tag.
@@ -80,30 +73,36 @@ fn attr(input: Input<'_>) -> Result<'_, Change> {
     let mut parser = alt((
         style_attr,
         link,
-        map((color_kind_specifier, specified_color), |(kind, color)| kind.to_change(color)),
-        map(color_16(Case::Lowercase), |color_16| Change::Foreground(Color::Color16(color_16))),
-        map(
-            color_256(Specified::False),
-            |(color_256, color_kind)| color_kind.unwrap().to_change(Color::Color256(color_256))
-        ),
-        map(
-            color_rgb(Specified::False),
-            |(color_rgb, color_kind)| color_kind.unwrap().to_change(Color::ColorRgb(color_rgb))
-        ),
-        map(color_16(Case::Uppercase), |color_16| Change::Background(Color::Color16(color_16))),
+        map((color_kind_specifier, specified_color), |(kind, color)| {
+            kind.to_change(color)
+        }),
+        map(color_16(Case::Lowercase), |color_16| {
+            Change::Foreground(Color::Color16(color_16))
+        }),
+        map(color_256(Specified::False), |(color_256, color_kind)| {
+            color_kind.unwrap().to_change(Color::Color256(color_256))
+        }),
+        map(color_rgb(Specified::False), |(color_rgb, color_kind)| {
+            color_kind.unwrap().to_change(Color::ColorRgb(color_rgb))
+        }),
+        map(color_16(Case::Uppercase), |color_16| {
+            Change::Background(Color::Color16(color_16))
+        }),
     ));
 
-    parser.parse(input).map_err(|e| {
-        match e {
-            Err::Error(_) => {
-                let msg = match alphanumeric1::<&str, Error>(input) {
-                    Ok((_, attr)) => format!("Unknown color attribute: <{attr}>"),
-                    Err(_) => "Unable to parse this attribute".to_string(),
-                };
-                Err::Failure(Error::new(input, ErrorKind::Alpha, Some(ErrorDetail::new(input, msg))))
-            }
-            e => e
-        }
+    parser.parse(input).map_err(|e| match e {
+        Err::Error(_) => {
+            let msg = match alphanumeric1::<&str, Error>(input) {
+                Ok((_, attr)) => format!("Unknown color attribute: <{attr}>"),
+                Err(_) => "Unable to parse this attribute".to_string(),
+            };
+            Err::Failure(Error::new(
+                input,
+                ErrorKind::Alpha,
+                Some(ErrorDetail::new(input, msg)),
+            ))
+        },
+        e => e,
     })
 }
 
@@ -119,7 +118,7 @@ fn style_attr(input: Input<'_>) -> Result<'_, Change> {
         "strike" => Change::Strike,
         "reverse" | "rev" => Change::Reverse,
         "conceal" | "hide" => Change::Conceal,
-        _ => { return Err(Err::Error(Error::new(input, ErrorKind::Tag, None))) }
+        _ => return Err(Err::Error(Error::new(input, ErrorKind::Tag, None))),
     };
     Ok((input, change))
 }
@@ -129,9 +128,9 @@ fn link(input: Input<'_>) -> Result<'_, Change> {
     map(
         function(
             tag("link"),
-            with_failure_message(url_value, "Expected a URL, e.g. link(https://example.com)")
+            with_failure_message(url_value, "Expected a URL, e.g. link(https://example.com)"),
         ),
-        |url: &str| Change::Link(url.trim().to_string())
+        |url: &str| Change::Link(url.trim().to_string()),
     )
     .parse(input)
 }
@@ -152,7 +151,7 @@ fn color_kind_specifier(input: Input<'_>) -> Result<'_, ColorKind> {
             )),
             stag(":"),
         ),
-        "Unknown specifier, allowed specifiers are \"bg\" or \"fg\" (shortcuts: \"b\" or \"f\")"
+        "Unknown specifier, allowed specifiers are \"bg\" or \"fg\" (shortcuts: \"b\" or \"f\")",
     )
     .parse(input)
 }
@@ -162,10 +161,14 @@ fn specified_color(input: Input<'_>) -> Result<'_, Color> {
     with_failure_message(
         alt((
             map(color_16(Case::Lowercase), Color::Color16),
-            map(color_256(Specified::True), |(color, _)| Color::Color256(color)),
-            map(color_rgb(Specified::True), |(color, _)| Color::ColorRgb(color)),
+            map(color_256(Specified::True), |(color, _)| {
+                Color::Color256(color)
+            }),
+            map(color_rgb(Specified::True), |(color, _)| {
+                Color::ColorRgb(color)
+            }),
         )),
-        "Unknown color"
+        "Unknown color",
     )
     .parse(input)
 }
@@ -181,12 +184,15 @@ fn color_16<'a>(letter_case: Case) -> impl Parser<'a, Color16> {
         alt((
             map(
                 preceded(tag(bright_prefix), base_color(letter_case)),
-                |base_color| Color16::new(base_color, Intensity::Bright)
+                |base_color| Color16::new(base_color, Intensity::Bright),
             ),
             map(
-                pair(spaced(base_color(letter_case)), is_present(spaced(tag("!")))),
-                |(base_color, is_bright)| Color16::new(base_color, Intensity::new(is_bright))
-            )
+                pair(
+                    spaced(base_color(letter_case)),
+                    is_present(spaced(tag("!"))),
+                ),
+                |(base_color, is_bright)| Color16::new(base_color, Intensity::new(is_bright)),
+            ),
         ))
         .parse(input)
     }
@@ -194,8 +200,7 @@ fn color_16<'a>(letter_case: Case) -> impl Parser<'a, Color16> {
 
 /// Parses a 256-color color, like `"pal(42)"`. If the color to parse is declared as "specified",
 /// the only the lowercase functions will be available.
-fn color_256<'a>(specified: Specified) -> impl Parser<'a, (Color256, Option<ColorKind>)>
-{
+fn color_256<'a>(specified: Specified) -> impl Parser<'a, (Color256, Option<ColorKind>)> {
     const PALETTE_FAILURE_MESSAGE: &str = "Palette color must a number between 0 and 255";
 
     fn pal_color(input: Input<'_>) -> Result<'_, u8> {
@@ -206,15 +211,19 @@ fn color_256<'a>(specified: Specified) -> impl Parser<'a, (Color256, Option<Colo
         let function_names = alt((tag(name1), tag(name2), tag(name3)));
         function(
             function_names,
-            with_failure_message(pal_color, PALETTE_FAILURE_MESSAGE)
+            with_failure_message(pal_color, PALETTE_FAILURE_MESSAGE),
         )
     }
 
     fn pal_lower(input: Input<'_>) -> Result<'_, Color256> {
-        map(alt((
-            pal_fn("palette", "pal", "p"),
-            check_parser_before_failure(digit1, u8, PALETTE_FAILURE_MESSAGE)
-        )), Color256).parse(input)
+        map(
+            alt((
+                pal_fn("palette", "pal", "p"),
+                check_parser_before_failure(digit1, u8, PALETTE_FAILURE_MESSAGE),
+            )),
+            Color256,
+        )
+        .parse(input)
     }
 
     fn pal_upper(input: Input<'_>) -> Result<'_, Color256> {
@@ -222,15 +231,12 @@ fn color_256<'a>(specified: Specified) -> impl Parser<'a, (Color256, Option<Colo
     }
 
     if specified.is_true() {
-        |input| {
-            map(pal_lower, |color| (color, None))
-            .parse(input)
-        }
+        |input| map(pal_lower, |color| (color, None)).parse(input)
     } else {
         |input| {
             alt((
                 map(pal_lower, |color| (color, Some(ColorKind::Foreground))),
-                map(pal_upper, |color| (color, Some(ColorKind::Background)))
+                map(pal_upper, |color| (color, Some(ColorKind::Background))),
             ))
             .parse(input)
         }
@@ -241,7 +247,10 @@ fn color_256<'a>(specified: Specified) -> impl Parser<'a, (Color256, Option<Colo
 /// "specified", the only the lowercase functions will be available.
 fn color_rgb<'a>(specified: Specified) -> impl Parser<'a, (ColorRgb, Option<ColorKind>)> {
     fn component(input: Input<'_>) -> Result<'_, u8> {
-        with_failure_message(u8, "Bad RGB color component: must be a number between 0 and 255")
+        with_failure_message(
+            u8,
+            "Bad RGB color component: must be a number between 0 and 255",
+        )
         .parse(input)
     }
 
@@ -251,10 +260,10 @@ fn color_rgb<'a>(specified: Specified) -> impl Parser<'a, (ColorRgb, Option<Colo
                 tag(name),
                 with_failure_message(
                     (component, stag(","), component, stag(","), component),
-                    "Wrong arguments: expects 3 numbers between 0 and 255, separated by commas"
-                )
+                    "Wrong arguments: expects 3 numbers between 0 and 255, separated by commas",
+                ),
             ),
-            |(r, _, g, _, b)| ColorRgb { r, g, b }
+            |(r, _, g, _, b)| ColorRgb { r, g, b },
         )
     }
 
@@ -267,10 +276,7 @@ fn color_rgb<'a>(specified: Specified) -> impl Parser<'a, (ColorRgb, Option<Colo
     }
 
     if specified.is_true() {
-        |input| {
-            map(alt((rgb_lower, hex_rgb_color)), |color| (color, None))
-            .parse(input)
-        }
+        |input| map(alt((rgb_lower, hex_rgb_color)), |color| (color, None)).parse(input)
     } else {
         |input| {
             alt((
@@ -288,7 +294,7 @@ fn hex_rgb_color(input: Input<'_>) -> Result<'_, ColorRgb> {
     fn component(input: Input<'_>) -> Result<'_, u8> {
         map_res(
             take_while_m_n(2, 2, |c: char| c.is_ascii_hexdigit()),
-            |input| u8::from_str_radix(input, 16)
+            |input| u8::from_str_radix(input, 16),
         )
         .parse(input)
     }
@@ -298,10 +304,10 @@ fn hex_rgb_color(input: Input<'_>) -> Result<'_, ColorRgb> {
             tag("#"),
             with_failure_message(
                 (component, component, component),
-                "Bad hexadecimal color code"
-            )
+                "Bad hexadecimal color code",
+            ),
         ),
-        |(r, g ,b)| ColorRgb { r, g, b }
+        |(r, g, b)| ColorRgb { r, g, b },
     )
     .parse(input)
 }
@@ -313,23 +319,23 @@ fn base_color<'a>(letter_case: Case) -> impl Parser<'a, BaseColor> {
             Case::Uppercase => {
                 let (input, word) = uppercase_word(input)?;
                 (input, Cow::Owned(word.to_ascii_lowercase()))
-            }
+            },
             Case::Lowercase => {
                 let (input, word) = lowercase_word(input)?;
                 (input, Cow::Borrowed(word))
-            }
+            },
         };
 
         let base_color = match word.as_ref() {
-            "k" | "black"   => BaseColor::Black,
-            "r" | "red"     => BaseColor::Red,
-            "g" | "green"   => BaseColor::Green,
-            "y" | "yellow"  => BaseColor::Yellow,
-            "b" | "blue"    => BaseColor::Blue,
+            "k" | "black" => BaseColor::Black,
+            "r" | "red" => BaseColor::Red,
+            "g" | "green" => BaseColor::Green,
+            "y" | "yellow" => BaseColor::Yellow,
+            "b" | "blue" => BaseColor::Blue,
             "m" | "magenta" => BaseColor::Magenta,
-            "c" | "cyan"    => BaseColor::Cyan,
-            "w" | "white"   => BaseColor::White,
-            _ => { return Err(Err::Error(Error::new(input, ErrorKind::Tag, None))) }
+            "c" | "cyan" => BaseColor::Cyan,
+            "w" | "white" => BaseColor::White,
+            _ => return Err(Err::Error(Error::new(input, ErrorKind::Tag, None))),
         };
         Ok((input, base_color))
     }
@@ -338,7 +344,7 @@ fn base_color<'a>(letter_case: Case) -> impl Parser<'a, BaseColor> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::color_context::{Color, Color16, BaseColor, Intensity};
+    use crate::color_context::{BaseColor, Color, Color16, Intensity};
 
     macro_rules! tag {
         ($source:expr, $is_close:expr, $($changes:expr),*) => {
@@ -359,7 +365,7 @@ mod tests {
     macro_rules! color16 {
         ($base_color:ident, $intensity:ident) => {
             Color::Color16(Color16::new(BaseColor::$base_color, Intensity::$intensity))
-        }
+        };
     }
 
     #[test]
@@ -380,10 +386,7 @@ mod tests {
             tag,
             open_tag!(
                 "<s,y!>",
-                [
-                    Change::Bold,
-                    Change::Foreground(color16!(Yellow, Bright)),
-                ]
+                [Change::Bold, Change::Foreground(color16!(Yellow, Bright)),]
             )
         );
 
@@ -404,36 +407,89 @@ mod tests {
     #[test]
     fn parse_color256() {
         let tag = color_tag("<48>").unwrap().1;
-        assert_eq!(tag, open_tag!("<48>", [Change::Foreground(Color::Color256(Color256(48)))]));
+        assert_eq!(
+            tag,
+            open_tag!("<48>", [Change::Foreground(Color::Color256(Color256(48)))])
+        );
         let tag = color_tag("<fg:48>").unwrap().1;
-        assert_eq!(tag, open_tag!("<fg:48>", [Change::Foreground(Color::Color256(Color256(48)))]));
+        assert_eq!(
+            tag,
+            open_tag!(
+                "<fg:48>",
+                [Change::Foreground(Color::Color256(Color256(48)))]
+            )
+        );
         let tag = color_tag("<bg:48>").unwrap().1;
-        assert_eq!(tag, open_tag!("<bg:48>", [Change::Background(Color::Color256(Color256(48)))]));
+        assert_eq!(
+            tag,
+            open_tag!(
+                "<bg:48>",
+                [Change::Background(Color::Color256(Color256(48)))]
+            )
+        );
         let tag = color_tag("<PAL(48)>").unwrap().1;
-        assert_eq!(tag, open_tag!("<PAL(48)>", [Change::Background(Color::Color256(Color256(48)))]));
+        assert_eq!(
+            tag,
+            open_tag!(
+                "<PAL(48)>",
+                [Change::Background(Color::Color256(Color256(48)))]
+            )
+        );
     }
 
     #[test]
     fn parse_color_rgb() {
         let tag = color_tag("<rgb(1,2,3)>").unwrap().1;
-        assert_eq!(tag, open_tag!("<rgb(1,2,3)>", [
-            Change::Foreground(Color::ColorRgb(ColorRgb{ r: 1, g: 2, b: 3}))
-        ]));
+        assert_eq!(
+            tag,
+            open_tag!(
+                "<rgb(1,2,3)>",
+                [Change::Foreground(Color::ColorRgb(ColorRgb {
+                    r: 1,
+                    g: 2,
+                    b: 3
+                }))]
+            )
+        );
 
         let tag = color_tag("<RGB(1,2,3)>").unwrap().1;
-        assert_eq!(tag, open_tag!("<RGB(1,2,3)>", [
-            Change::Background(Color::ColorRgb(ColorRgb{ r: 1, g: 2, b: 3}))
-        ]));
+        assert_eq!(
+            tag,
+            open_tag!(
+                "<RGB(1,2,3)>",
+                [Change::Background(Color::ColorRgb(ColorRgb {
+                    r: 1,
+                    g: 2,
+                    b: 3
+                }))]
+            )
+        );
 
         let tag = color_tag("<rgb( 1 , 2 , 3  )>").unwrap().1;
-        assert_eq!(tag, open_tag!("<rgb( 1 , 2 , 3  )>", [
-            Change::Foreground(Color::ColorRgb(ColorRgb{ r: 1, g: 2, b: 3}))
-        ]));
+        assert_eq!(
+            tag,
+            open_tag!(
+                "<rgb( 1 , 2 , 3  )>",
+                [Change::Foreground(Color::ColorRgb(ColorRgb {
+                    r: 1,
+                    g: 2,
+                    b: 3
+                }))]
+            )
+        );
 
         let tag = color_tag("<  #102030 >").unwrap().1;
-        assert_eq!(tag, open_tag!("<  #102030 >", [
-            Change::Foreground(Color::ColorRgb(ColorRgb{ r: 16, g: 32, b: 48}))
-        ]));
+        assert_eq!(
+            tag,
+            open_tag!(
+                "<  #102030 >",
+                [Change::Foreground(Color::ColorRgb(ColorRgb {
+                    r: 16,
+                    g: 32,
+                    b: 48
+                }))]
+            )
+        );
     }
 
     #[test]
@@ -452,10 +508,7 @@ mod tests {
             tag,
             open_tag!(
                 "<  s  ,   \t y!>",
-                [
-                    Change::Bold,
-                    Change::Foreground(color16!(Yellow, Bright)),
-                ]
+                [Change::Bold, Change::Foreground(color16!(Yellow, Bright)),]
             )
         );
     }
@@ -465,19 +518,28 @@ mod tests {
         let tag = color_tag("<link(https://example.com)>").unwrap().1;
         assert_eq!(
             tag,
-            open_tag!("<link(https://example.com)>", [Change::Link("https://example.com".to_string())])
+            open_tag!(
+                "<link(https://example.com)>",
+                [Change::Link("https://example.com".to_string())]
+            )
         );
 
         let tag = color_tag("<link( https://example.com )>").unwrap().1;
         assert_eq!(
             tag,
-            open_tag!("<link( https://example.com )>", [Change::Link("https://example.com".to_string())])
+            open_tag!(
+                "<link( https://example.com )>",
+                [Change::Link("https://example.com".to_string())]
+            )
         );
 
         let tag = color_tag("</link(https://example.com)>").unwrap().1;
         assert_eq!(
             tag,
-            close_tag!("</link(https://example.com)>", [Change::Link("https://example.com".to_string())])
+            close_tag!(
+                "</link(https://example.com)>",
+                [Change::Link("https://example.com".to_string())]
+            )
         );
 
         let tag = color_tag("<link(https://example.com),bold>").unwrap().1;
@@ -485,7 +547,10 @@ mod tests {
             tag,
             open_tag!(
                 "<link(https://example.com),bold>",
-                [Change::Link("https://example.com".to_string()), Change::Bold]
+                [
+                    Change::Link("https://example.com".to_string()),
+                    Change::Bold
+                ]
             )
         );
     }

@@ -16,13 +16,10 @@ mod untagged;
 
 use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::{quote, ToTokens};
-use syn::{
-    parse::{Parse, ParseStream},
-    parse_macro_input,
-    token::Comma,
-    Expr,
-};
+use quote::{ToTokens, quote};
+use syn::parse::{Parse, ParseStream};
+use syn::token::Comma;
+use syn::{Expr, parse_macro_input};
 
 /// The same as `format!()`, but parses color tags.
 ///

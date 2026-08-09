@@ -1,0 +1,5 @@
+[[packages]]
+name = "rust"
+version = "stable"
+backend = "rust"
+sources = [""]

@@ -2,17 +2,18 @@
 
 mod format_arg;
 
+use format_arg::FormatArg;
 use proc_macro::TokenStream;
+use syn::parse::Parser;
+use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
-use syn::{
-    self, parse::Parser, punctuated::Punctuated, token::Comma, Expr, ExprLit, Lit, LitStr, Token,
-};
+use syn::token::Comma;
+use syn::{self, Expr, ExprLit, Lit, LitStr, Token};
 
 use crate::color_context::ColorTag;
 use crate::error::{Error, SpanError};
 use crate::parse;
 use crate::util::{self, inner_span};
-use format_arg::FormatArg;
 
 /// Retrieves the original format string and arguments given to the public macros.
 pub fn get_args_and_format_string(
@@ -40,10 +41,11 @@ pub fn get_format_string(arg: Option<&FormatArg>) -> Result<LitStr, SpanError> {
             }),
             ..
         }) => Ok(s.to_owned()),
-        Some(bad_arg) => {
-            Err(SpanError::new(Error::MustBeStringLiteral, Some(bad_arg.span()),))
-        }
-        None => Ok(util::literal_string(""))
+        Some(bad_arg) => Err(SpanError::new(
+            Error::MustBeStringLiteral,
+            Some(bad_arg.span()),
+        )),
+        None => Ok(util::literal_string("")),
     }
 }
 
@@ -88,7 +90,9 @@ pub fn parse_format_string<'a>(
     }
 
     macro_rules! span {
-        ($inside:expr) => { inner_span(input, lit_str, $inside) };
+        ($inside:expr) => {
+            inner_span(input, lit_str, $inside)
+        };
     }
     macro_rules! err {
         ([$inside:expr] $($e:tt)*) => { SpanError::new($($e)*, Some(span!($inside))) };
@@ -127,7 +131,7 @@ pub fn parse_format_string<'a>(
                 if push_text && text_start != i {
                     nodes.push(Node::Text(&input[text_start..i]));
                 }
-            }
+            },
             Context::Placeholder(ph_start) => {
                 if c == '{' && i == ph_start + 1 {
                     // Double curly brackets "{{":
@@ -137,7 +141,7 @@ pub fn parse_format_string<'a>(
                     nodes.push(Node::Placeholder(&input[ph_start..i + 1]));
                     context = Context::Text(i + 1);
                 }
-            }
+            },
             Context::Color(tag_start) => {
                 if c == '<' && i == tag_start + 1 {
                     // Double open angle brackets "<<":
@@ -149,10 +153,12 @@ pub fn parse_format_string<'a>(
                         .map_err(|e| {
                             use nom::Err;
                             let (input, error) = match e {
-                                Err::Error(parse::Error { detail: Some(d), .. }) |
-                                Err::Failure(parse::Error { detail: Some(d), .. }) => {
-                                    (d.input, Error::ParseTag(d.message))
-                                }
+                                Err::Error(parse::Error {
+                                    detail: Some(d), ..
+                                })
+                                | Err::Failure(parse::Error {
+                                    detail: Some(d), ..
+                                }) => (d.input, Error::ParseTag(d.message)),
                                 // Should never happen:
                                 _ => (tag_input, Error::UnableToParseTag(tag_input.to_string())),
                             };
@@ -171,7 +177,7 @@ pub fn parse_format_string<'a>(
                     }
                     context = Context::Text(i + 1);
                 }
-            }
+            },
         }
     }
 
@@ -191,7 +197,7 @@ pub fn parse_format_string<'a>(
             }
 
             Ok(nodes)
-        }
+        },
         Context::Placeholder(start) => Err(err!([&input[start..]] Error::UnclosedPlaceholder)),
         Context::Color(start) => Err(err!([&input[start..]] Error::UnclosedTag)),
     }

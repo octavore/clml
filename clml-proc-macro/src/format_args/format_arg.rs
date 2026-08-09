@@ -2,10 +2,8 @@
 
 use proc_macro2::TokenStream as TokenStream2;
 use quote::ToTokens;
-use syn::{
-    parse::{Parse, ParseStream, Result},
-    token, Expr, Ident, Token,
-};
+use syn::parse::{Parse, ParseStream, Result};
+use syn::{Expr, Ident, Token, token};
 
 /// An argument in a `format!`-like macro (excluding the first argument aka the format string).
 pub struct FormatArg {

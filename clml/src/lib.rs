@@ -21,8 +21,8 @@
 //! - [`cwrite!()`] as [`write!()`]
 //! - [`cwriteln!()`] as [`writeln!()`]
 //!
-//! But they accept an additional syntax inside the
-//! format string: HTML-like tags which add ANSI colors/styles at compile-time.
+//! But they accept an additional syntax inside the format string: HTML-liketags which add ANSI
+//! colors/styles at compile-time.
 //!
 //! [`cstr!()`] only transforms the given string literal into another string literal, without
 //! formatting anything else than the colors tag.
@@ -32,13 +32,14 @@
 //! ## What does it do ?
 //!
 //! By default, the provided macros will replace the tags found in the format string by ANSI
-//! hexadecimal escape codes. E.g.:
+//! hexadecimal escape codes. e.g.:
 //!
 //! ```
 //! # use clml::cprintln;
 //! # fn main() {
 //! cprintln!("HELLO <green>WORLD</green>");
 //! cprintln!("HELLO <green>WORLD</>"); // Alternative, shorter syntax
+//!
 //! # }
 //! ```
 //!
@@ -60,8 +61,8 @@
 //! * Some optimizations are performed to avoid redundant ANSI sequences, because these
 //!   optimizations can be done at compile-time without impacting the runtime;
 //! * Almost every tag has a short name, so colorizing can be done quickly: `"my <b>blue</> word"`;
-//! * Each provided macro can be used exactly in the same way as the standard `format!`-like
-//!   macros; e.g., positional arguments and named arguments can be used as usual;
+//! * Each provided macro can be used exactly in the same way as the standard `format!`-like macros;
+//!   e.g., positional arguments and named arguments can be used as usual;
 //! * Supports 16, 256 and 16M colors;
 //! * Fine-grained error handling (errors will be given at compile-time).
 //!
@@ -80,11 +81,8 @@
 //!
 //! ## Closing a tag more simply: the `</>` tag
 //!
-//! Basically, tags must be closed by giving *exactly* the same colors/styles as their matching
-//! open tag (with a slash `/` at the beginning), e.g: `<blue,bold>...</blue,bold>`. But it can be
-//! tedious!
-//!
-//! So, it is also possible to close the last open tag simply with `</>`:
+//! Instead of closing tags with a matching tag, which must be exact, you can also close the last
+//! open tag simply with `</>`:
 //!
 //! ```
 //! # use clml::cprintln;
@@ -130,8 +128,8 @@
 //!
 //! ## Unclosed tags are automatically closed at the end of the format string
 //!
-//! Tags which have not been closed manually will be closed automatically, which means that the
-//! ANSI sequences needed to go back to the original state will be added:
+//! Tags which have not been closed manually will be closed automatically, which means that the ANSI
+//! sequences needed to go back to the original state will be added:
 //!
 //! ```
 //! # use clml::cprintln;
@@ -144,7 +142,7 @@
 //!
 //! ## How to display the chars `<` and `>` verbatim
 //!
-//! As for `{` and `}` in standard format strings, the chars `<` and `>` have to be doubled in
+//! As for `{` and `}` in standard format strings, the chars `<` and `>` have to  be doubled in
 //! order to display them verbatim:
 //!
 //! ```
@@ -156,7 +154,7 @@
 //!
 //! ## Hyperlinks
 //!
-//! `<link(URL)>` wraps text in an OSC 8 hyperlink, which most modern terminal emulators render as
+//! `<link(URL)>` wraps text in an OSC 8 hyperlink, which most modern terminal  emulators render as
 //! a clickable link:
 //!
 //! ```
@@ -198,19 +196,19 @@
 //!
 //! # The feature `anstream`
 //!
-//! By default the printing macros write to `std::io::stdout` / `stderr`, emitting the escape
-//! codes verbatim. Enabling the `anstream` feature routes them through
+//! By default the printing macros write to `std::io::stdout` / `stderr`, emitting the escape codes
+//! verbatim. Enabling the `anstream` feature routes them through
 //! [`anstream`](https://crates.io/crates/anstream)'s auto-adapting streams instead:
 //!
 //! ```toml
 //! clml = { version = "0.1", features = ["anstream"] }
 //! ```
 //!
-//! Nothing changes at the call site — `cprintln!` and friends keep the same syntax — but the
-//! output now adapts to its destination:
+//! Nothing changes at the call site — `cprintln!` and friends keep the same syntax — but the output
+//! now adapts to its destination:
 //!
-//! * escape codes are stripped when stdout/stderr is not a terminal, so piped and redirected
-//!   output stays clean;
+//! * escape codes are stripped when stdout/stderr is not a terminal, so piped and redirected output
+//!   stays clean;
 //! * `NO_COLOR`, `CLICOLOR` and `CLICOLOR_FORCE` are honoured;
 //! * on legacy Windows consoles without virtual terminal processing, styling is translated into
 //!   console API calls.
@@ -339,10 +337,11 @@ macro_rules! ceprintln {
 /// working when the dependency is renamed (`mycolor = { package = "clml" }`).
 #[doc(hidden)]
 pub mod __private {
-    #[cfg(feature = "anstream")]
-    pub use anstream::{eprint, eprintln, print, println};
     #[cfg(not(feature = "anstream"))]
     pub use std::{eprint, eprintln, print, println};
+
+    #[cfg(feature = "anstream")]
+    pub use anstream::{eprint, eprintln, print, println};
 }
 
 #[cfg(test)]
@@ -508,13 +507,16 @@ mod tests {
         assert_eq!(untagged!("<red>hi <em>all</></>"), "hi all");
     }
 
-    /// Regression test for wrapping the macros in another `macro_rules!` — the pattern used to
-    /// route output through a stream adapter such as `anstream`.
+    /// Regression test for wrapping the macros in another `macro_rules!` — the
+    /// pattern used to route output through a stream adapter such as
+    /// `anstream`.
     ///
-    /// Implicit named captures (RFC 2795) are resolved against the span of the format string
-    /// literal, so the literal we rebuild must carry the span of the literal the caller wrote. If
-    /// it instead gets a fresh `Span::call_site()`, that resolves at the wrapper macro's
-    /// definition site and `{msg}` fails to compile with "cannot find value `msg` in this scope".
+    /// Implicit named captures (RFC 2795) are resolved against the span of the
+    /// format string literal, so the literal we rebuild must carry the span
+    /// of the literal the caller wrote. If it instead gets a fresh
+    /// `Span::call_site()`, that resolves at the wrapper macro's definition
+    /// site and `{msg}` fails to compile with "cannot find value `msg` in this
+    /// scope".
     #[test]
     fn implicit_capture_through_macro_rules_wrapper() {
         macro_rules! wrapped_cformat {
@@ -529,7 +531,12 @@ mod tests {
 
         assert_eq!(wrapped_cformat!("{msg}"), "hello");
         assert_eq!(wrapped_cformat!("{msg} {count}"), "hello 2");
-        assert_eq!(wrapped_cformat!("<red>{msg}</red> {msg}").matches(msg).count(), 2);
+        assert_eq!(
+            wrapped_cformat!("<red>{msg}</red> {msg}")
+                .matches(msg)
+                .count(),
+            2
+        );
         assert_eq!(wrapped_untagged!("<red>hi</red>"), "hi");
 
         macro_rules! wrapped_cstr {
