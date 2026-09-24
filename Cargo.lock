@@ -54,7 +54,7 @@ dependencies = [
 
 [[package]]
 name = "clml"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anstream",
  "clml-proc-macro",
@@ -62,7 +62,7 @@ dependencies = [
 
 [[package]]
 name = "clml-proc-macro"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "nom",
  "proc-macro2",
@@ -124,7 +124,7 @@ dependencies = [
 
 [[package]]
 name = "renamed-dep"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "clml",
 ]

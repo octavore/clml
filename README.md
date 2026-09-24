@@ -77,7 +77,7 @@ The `anstream` feature is enabled by default. It routes the printing macros thro
 Without it, the printing macros write to `std::io::stdout` or `std::io::stderr` and emit the escape codes verbatim. To opt out:
 
 ```toml
-clml = { version = "0.2", default-features = false }
+clml = { version = "0.3", default-features = false }
 ```
 
 ```console
@@ -107,7 +107,7 @@ cprintlndoc!(
 To opt out, disable default features and re-add `anstream` if you want it:
 
 ```toml
-clml = { version = "0.2", default-features = false, features = ["anstream"] }
+clml = { version = "0.3", default-features = false, features = ["anstream"] }
 ```
 
 ## License

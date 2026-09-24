@@ -210,7 +210,7 @@
 //! escape codes verbatim. To opt out:
 //!
 //! ```toml
-//! clml = { version = "0.2", default-features = false }
+//! clml = { version = "0.3", default-features = false }
 //! ```
 //!
 //! # `doc` feature
@@ -233,7 +233,7 @@
 //! To opt out, disable default features and re-add `anstream` if you want it:
 //!
 //! ```toml
-//! clml = { version = "0.2", default-features = false, features = ["anstream"] }
+//! clml = { version = "0.3", default-features = false, features = ["anstream"] }
 //! ```
 //!
 //! # Tag naming rules
