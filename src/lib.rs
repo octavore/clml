@@ -1,6 +1,6 @@
-//! Colorize and stylize strings for terminal at compile-time, by using an HTML-like syntax. Based
-//! on [`color-print`](https://gitlab.com/dajoha/color-print). CLML stands for `command-line markup
-//! language`.
+//! Color and style terminal strings at compile time using an HTML-like syntax. CLML stands for
+//! `command-line markup language`, and the library is based on
+//! [`color-print`](https://gitlab.com/dajoha/color-print).
 //!
 //! This library provides the following macros:
 //!
@@ -16,60 +16,56 @@
 //!
 //! With the `doc` feature enabled, a `...doc!` variant of each formatting macro is also available
 //! (`cformatdoc!`, `cprintdoc!`, `cprintlndoc!`, `ceprintdoc!`, `ceprintlndoc!`, `cwritedoc!`,
-//! `cwritelndoc!`), which dedents the format string like [`indoc::indoc!()`]; see below for more.
+//! `cwritelndoc!`), which dedent the format string like [`indoc::indoc!()`]. See the `doc`
+//! feature section below.
 //!
-//! CLML macros support colors via HTML-like tags which add ANSI colors/styles at compile-time.
+//! [`cstr!()`] replaces the tags in a string literal with ANSI sequences and returns a new string
+//! literal. It does not process formatting placeholders.
 //!
-//! [`cstr!()`] only transforms the given string literal into another string literal, without
-//! formatting anything else than the colors tag.
+//! [`untagged!()`] removes all tags from a string literal.
 //!
-//! [`untagged!()`] removes all the tags found in the given string literal.
+//! # How it works
 //!
-//! ## What does it do ?
-//!
-//! By default, the provided macros will replace the tags found in the format string by ANSI
-//! hexadecimal escape codes. e.g.:
+//! The macros replace the tags in the format string with ANSI escape codes at compile time. For
+//! example:
 //!
 //! ```
 //! # use clml::cprintln;
 //! # fn main() {
 //! cprintln!("HELLO <green>WORLD</green>");
-//! cprintln!("HELLO <green>WORLD</>"); // Alternative, shorter syntax
-//!
+//! cprintln!("HELLO <green>WORLD</>"); // Shorter closing tag
 //! # }
 //! ```
 //!
-//! will be replaced by:
+//! expands to:
 //!
 //! ```
-//! # use clml::cprintln;
 //! # fn main() {
-//! println!("HELLO \u{1b}[31mWORLD\u{1b}[39m")
+//! println!("HELLO \u{1b}[32mWORLD\u{1b}[39m")
 //! # }
 //! ```
 //!
-//! # Pros/cons of this crate
+//! # Pros and cons
 //!
 //! ## Pros
 //!
-//! * Styling is processed at compile-time, so there is no runtime payload.
-//! * Nested tags are well handled, e.g. `"<green>...<blue>...</blue>...</green>"`.
-//! * Some optimizations are performed to avoid redundant ANSI sequences, because these
-//!   optimizations can be done at compile-time without impacting the runtime.
-//! * Almost every tag has a short name, so colorizing can be done quickly: `"my <b>blue</> word"`.
-//! * Each provided macro can be used exactly in the same way as the standard `format!`-like macros.
-//!   e.g., positional arguments and named arguments can be used as usual.
-//! * Supports 16, 256 and 16M colors.
-//! * Fine-grained error handling (errors will be given at compile-time).
-//! * Macros can be composed with other macros, e.g. re-exported through your own `macro_rules!`.
-//! * Native support for [`anstream`](https://crates.io/crates/anstream) (automatically removes ANSI
-//!   codes where not supported), via the `anstream` feature.
+//! * Tags are processed at compile time, so there is no runtime cost.
+//! * Tags nest, e.g. `"<green>...<blue>...</blue>...</green>"`.
+//! * The output contains no redundant ANSI sequences.
+//! * Almost every tag has a short name, e.g. `"my <b>blue</> word"`.
+//! * Each macro accepts the same arguments as its `std` counterpart, including positional and
+//!   named arguments.
+//! * Supports 16, 256, and 16M colors.
+//! * Reports errors at compile time, pointing into the format string.
+//! * The macros can be wrapped in your own `macro_rules!`.
+//! * Native support for [`anstream`](https://crates.io/crates/anstream), which strips ANSI codes
+//!   when the output does not support them, via the `anstream` feature.
 //! * Native support for multi-line strings with automatic dedenting, via the `doc` feature.
 //! * Supports OSC 8 hyperlinks.
 //!
 //! ## Cons
 //!
-//! * Not compatible with non-ANSI terminals.
+//! * Not tested with non-ANSI terminals such as legacy Windows consoles.
 //!
 //! # Introduction
 //!
@@ -80,10 +76,10 @@
 //! cprintln!("Hello <green>world</green>!");
 //! ```
 //!
-//! ## Closing a tag more simply: the `</>` tag
+//! ## Closing the last open tag with `</>`
 //!
-//! Instead of closing tags with a matching tag, which must be exact, you can also close the last
-//! open tag simply with `</>`:
+//! A closing tag must exactly match its opening tag. `</>` closes the last open tag without
+//! repeating its name:
 //!
 //! ```
 //! # use clml::cprintln;
@@ -94,26 +90,21 @@
 //!
 //! ## Combining colors and styles
 //!
-//! Multiple styles and colors can be combined into a single tag by separating them with the `,`
-//! comma character:
+//! Separate colors and styles with a comma to combine them in a single tag:
 //!
 //! ```
 //! # use clml::cprintln;
 //! # fn main() {
-//! cprintln!("This a <green,bold>green and bold text</green,bold>.");
-//! // The same, but closing with the </> tag:
-//! cprintln!("This a <green,bold>green and bold text</>.");
+//! cprintln!("This is <green,bold>green and bold text</green,bold>.");
+//! // The same, closed with </>:
+//! cprintln!("This is <green,bold>green and bold text</>.");
 //! # }
 //! ```
 //!
 //! ## Nesting tags
 //!
-//! Any tag can be nested with any other.
-//!
-//! *Note*: The closing tags must match correctly (following the basic rules of nesting for HTML
-//! tags), but it can always be simplified by using the tag `</>`.
-//!
-//! Example of nested tags:
+//! Any tag can nest inside any other. Closing tags follow HTML nesting rules, and `</>` always
+//! closes the innermost open tag:
 //!
 //! ```
 //! # use clml::cprintln;
@@ -129,22 +120,20 @@
 //!
 //! ## Unclosed tags are automatically closed at the end of the format string
 //!
-//! Tags which have not been closed manually will be closed automatically, which means that the ANSI
-//! sequences needed to go back to the original state will be added:
+//! The macros append the ANSI sequences that reset any tags left open:
 //!
 //! ```
 //! # use clml::cprintln;
 //! # fn main() {
-//! // The two following lines are strictly equivalent:
+//! // These two lines are equivalent:
 //! cprintln!("<green><bold>Hello");
 //! cprintln!("<green><bold>Hello</></>");
 //! # }
 //! ```
 //!
-//! ## How to display the chars `<` and `>` verbatim
+//! ## Printing `<` and `>` verbatim
 //!
-//! As for `{` and `}` in standard format strings, the chars `<` and `>` have to  be doubled in
-//! order to display them verbatim:
+//! Double `<` and `>` to print them verbatim, as with `{` and `}` in standard format strings:
 //!
 //! ```
 //! # use clml::cprintln;
@@ -155,8 +144,8 @@
 //!
 //! ## Hyperlinks
 //!
-//! `<link(URL)>` wraps text in an OSC 8 hyperlink, which most modern terminal  emulators render as
-//! a clickable link:
+//! `<link(URL)>` wraps text in an OSC 8 hyperlink, which most modern terminal emulators render as a
+//! clickable link:
 //!
 //! ```
 //! # use clml::cprintln;
@@ -170,11 +159,9 @@
 //!
 //! # Optimization: no redundant ANSI codes
 //!
-//! The expanded format string will only contain the *needed* ANSI codes. This is done by making a
-//! diff of the different style attributes, each time a tag is encountered, instead of mechanically
-//! adding the ANSI codes.
-//!
-//! E.g., several nested `<bold>` tags will only produce one bold ANSI sequence:
+//! The expanded format string contains only the ANSI codes that change the current style. At each
+//! tag, the macros compare the new style attributes with the current ones and emit codes only for
+//! the differences. For example, several nested `<bold>` tags produce one bold sequence:
 //!
 //! ```
 //! # use clml::cprintln;
@@ -197,9 +184,7 @@
 //!
 //! # Composability
 //!
-//! `clml` is designed to be wrapped. Macros will work when re-exporting them through your own
-//! `macro_rules!`, e.g. routing output through a tty-aware adapter such as
-//! [`anstream`](https://crates.io/crates/anstream):
+//! The macros work inside your own `macro_rules!`:
 //!
 //! ```
 //! macro_rules! status {
@@ -210,34 +195,31 @@
 //! status!("<green>Compiling</green> {package}");
 //! ```
 //!
-//! Implicit named captures (e.g. `{package}` above) will resolve against the caller's scope, not
-//! the wrapper.
+//! Implicit named captures such as `{package}` resolve against the caller's scope, not the
+//! wrapper's.
 //!
 //! # `anstream` feature
 //!
-//! By default the printing macros write to `std::io::stdout`/`stderr` and the escape codes go out
-//! verbatim. Enable the `anstream` feature to route them through
-//! [`anstream`](https://crates.io/crates/anstream) instead:
+//! The `anstream` feature is enabled by default. It routes the printing macros through
+//! [`anstream`](https://crates.io/crates/anstream), which strips escape codes when the output is
+//! not a terminal, honors `NO_COLOR`, `CLICOLOR`, and `CLICOLOR_FORCE`, and calls the console API
+//! on legacy Windows consoles. CLML has not been tested with non-ANSI terminals such as legacy
+//! Windows consoles.
+//!
+//! Without it, the printing macros write to `std::io::stdout` or `std::io::stderr` and emit the
+//! escape codes verbatim. To opt out:
 //!
 //! ```toml
-//! clml = { version = "0.1", features = ["anstream"] }
+//! clml = { version = "0.2", default-features = false }
 //! ```
-//!
-//! With anstream, backend codes are stripped when stdout isn't a terminal,
-//! `NO_COLOR`/`CLICOLOR`/`CLICOLOR_FORCE` are honored, and legacy Windows consoles get console API
-//! calls instead of escape sequences.
-//!
 //!
 //! # `doc` feature
 //!
-//! Enabling the `doc` feature adds a `...doc!` variant of the formatting macros:
+//! The `doc` feature is enabled by default. It adds a `...doc!` variant of every formatting macro:
 //! [`cformatdoc!()`], [`cprintdoc!()`], [`cprintlndoc!()`], [`ceprintdoc!()`], [`ceprintlndoc!()`],
-//! [`cwritedoc!()`], [`cwritelndoc!()`]. These dedent the format string like [`indoc::indoc!()`]
-//! does, on top of the usual tag processing:
-//!
-//! ```toml
-//! clml = { version = "0.1", features = ["doc"] }
-//! ```
+//! [`cwritedoc!()`], and [`cwritelndoc!()`]. These macros process tags first, then strip the
+//! common leading whitespace from every line, as [`indoc::indoc!()`] does. Implicit named captures
+//! such as `{name}` work as usual.
 //!
 //! ```text
 //! cprintlndoc!(
@@ -248,36 +230,38 @@
 //! );
 //! ```
 //!
-//! Color tags are resolved first, then the common leading whitespace is stripped from every line,
-//! similar to wrapping the format string in `indoc!`. Supports implicit named captures (e.g.
-//! `{name}` above).
+//! To opt out, disable default features and re-add `anstream` if you want it:
 //!
-//! # Naming rules of the tags:
+//! ```toml
+//! clml = { version = "0.2", default-features = false, features = ["anstream"] }
+//! ```
 //!
-//! Each tag has at least a **long name**, like `<magenta>` or `<underline>`.
+//! # Tag naming rules
 //!
-//! The tags directly relative to *colors* (like `<red>`, `<bg:blue>`, `<bg:bright-green>`..., as
-//! opposed to *style* tags like `<bold>`, `<italics>`...) have some common naming rules:
+//! Each tag has a **long name**, such as `<magenta>` or `<underline>`.
 //!
-//!  * Each tag has four variants:
-//!    - `<mycolor>`: the normal, foreground color;
-//!    - `<bright-mycolor>` or `<mycolor!>`: the bright, foreground color;
-//!    - `<bg:mycolor>`, `<MYCOLOR>`: the normal, background color;
-//!    - `<bg:bright-mycolor>`, `<bg:mycolor!>`, `<BRIGHT-MYCOLOR>` or `<MYCOLOR!>`: the bright,
-//!      background color;
-//!  * Each tag has a *shortcut*, with a base letter for each color; example with the `x` letter:
-//!    - `<x>`: the normal, foreground color;
-//!    - `<x!>`: the bright, foreground color;
-//!    - `<bg:x>`, `<X>`: the normal, background color;
-//!    - `<bg:x!>`, `<X!>`: the bright, background color;
-//!  * Each color's shortcut letter is simply the **first letter of its name** (excepted for `<k>`
-//!    which is the shortcut for `<black>`), e.g. `<y>` is the shortcut for `<yellow>`;
-//!  * Each color's tag which is uppercase is a **background color**;
-//!  * Each tag which has a trailing exclamation point `!` is a **bright color**;
+//! Color tags such as `<red>`, `<bg:blue>`, and `<bg:bright-green>` follow common naming rules.
+//! Style tags such as `<bold>` and `<italics>` do not.
 //!
-//! # List of accepted tags:
+//!  * Each color has four variants:
+//!    - `<mycolor>`: normal foreground
+//!    - `<bright-mycolor>` or `<mycolor!>`: bright foreground
+//!    - `<bg:mycolor>` or `<MYCOLOR>`: normal background
+//!    - `<bg:bright-mycolor>`, `<bg:mycolor!>`, `<BRIGHT-MYCOLOR>`, or `<MYCOLOR!>`: bright
+//!      background
+//!  * Each color has a one-letter **shortcut**. With `x` as the letter:
+//!    - `<x>`: normal foreground
+//!    - `<x!>`: bright foreground
+//!    - `<bg:x>` or `<X>`: normal background
+//!    - `<bg:x!>` or `<X!>`: bright background
+//!  * The shortcut is the **first letter of the color's name**, except for black, which uses `<k>`.
+//!    For example, `<y>` is the shortcut for `<yellow>`.
+//!  * An uppercase color tag is a **background color**.
+//!  * A trailing `!` makes a color **bright**.
 //!
-//! Every tag below is supported; each has a long name, and most have a shortcut and aliases.
+//! # Accepted tags
+//!
+//! Each tag has a long name. Most also have a shortcut and aliases.
 //!
 //! | Shortcuts       | Long names            | Aliases                                                     |
 //! |-----------------|-----------------------|-------------------------------------------------------------|
@@ -326,6 +310,8 @@
 //! | `<0>`...`<255>` | `<palette(...)>`      | `<p(...)>` `<pal(...)>`                                     |
 //! | `<P(...)>`      | `<bg:palette(...)>`   | `<PALETTE(...)>` `<PAL(...)>` `<bg:p(...)>` `<bg:pal(...)>` |
 //! |                 | `<link(URL)>`         |                                                             |
+//!
+//! [`indoc::indoc!()`]: https://docs.rs/indoc/latest/indoc/macro.indoc.html
 
 pub use clml_proc_macro::{cformat, cstr, cwrite, cwriteln, untagged};
 #[cfg(feature = "doc")]
@@ -333,7 +319,7 @@ pub use clml_proc_macro::{cformatdoc, cwritedoc, cwritelndoc};
 
 /// The same as `print!()`, but parses color tags.
 ///
-/// Writes through [`__private`], so the `anstream` feature applies.
+/// Writes through `anstream` when the `anstream` feature is enabled.
 #[macro_export]
 macro_rules! cprint {
     ($($arg:tt)*) => { $crate::__private::print!("{}", $crate::cformat!($($arg)*)) };
@@ -341,7 +327,7 @@ macro_rules! cprint {
 
 /// The same as `println!()`, but parses color tags.
 ///
-/// Writes through [`__private`], so the `anstream` feature applies.
+/// Writes through `anstream` when the `anstream` feature is enabled.
 #[macro_export]
 macro_rules! cprintln {
     ($($arg:tt)*) => { $crate::__private::println!("{}", $crate::cformat!($($arg)*)) };
@@ -349,7 +335,7 @@ macro_rules! cprintln {
 
 /// The same as `eprint!()`, but parses color tags.
 ///
-/// Writes through [`__private`], so the `anstream` feature applies.
+/// Writes through `anstream` when the `anstream` feature is enabled.
 #[macro_export]
 macro_rules! ceprint {
     ($($arg:tt)*) => { $crate::__private::eprint!("{}", $crate::cformat!($($arg)*)) };
@@ -357,7 +343,7 @@ macro_rules! ceprint {
 
 /// The same as `eprintln!()`, but parses color tags.
 ///
-/// Writes through [`__private`], so the `anstream` feature applies.
+/// Writes through `anstream` when the `anstream` feature is enabled.
 #[macro_export]
 macro_rules! ceprintln {
     ($($arg:tt)*) => { $crate::__private::eprintln!("{}", $crate::cformat!($($arg)*)) };
@@ -366,7 +352,7 @@ macro_rules! ceprintln {
 /// The same as `print!()`, but parses color tags and dedents the format string like
 /// `indoc::indoc!()`.
 ///
-/// Writes through [`__private`], so the `anstream` feature applies.
+/// Writes through `anstream` when the `anstream` feature is enabled.
 #[cfg(feature = "doc")]
 #[macro_export]
 macro_rules! cprintdoc {
@@ -376,7 +362,7 @@ macro_rules! cprintdoc {
 /// The same as `println!()`, but parses color tags and dedents the format string like
 /// `indoc::indoc!()`.
 ///
-/// Writes through [`__private`], so the `anstream` feature applies.
+/// Writes through `anstream` when the `anstream` feature is enabled.
 #[cfg(feature = "doc")]
 #[macro_export]
 macro_rules! cprintlndoc {
@@ -386,7 +372,7 @@ macro_rules! cprintlndoc {
 /// The same as `eprint!()`, but parses color tags and dedents the format string like
 /// `indoc::indoc!()`.
 ///
-/// Writes through [`__private`], so the `anstream` feature applies.
+/// Writes through `anstream` when the `anstream` feature is enabled.
 #[cfg(feature = "doc")]
 #[macro_export]
 macro_rules! ceprintdoc {
@@ -396,7 +382,7 @@ macro_rules! ceprintdoc {
 /// The same as `eprintln!()`, but parses color tags and dedents the format string like
 /// `indoc::indoc!()`.
 ///
-/// Writes through [`__private`], so the `anstream` feature applies.
+/// Writes through `anstream` when the `anstream` feature is enabled.
 #[cfg(feature = "doc")]
 #[macro_export]
 macro_rules! ceprintlndoc {

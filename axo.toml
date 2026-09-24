@@ -29,7 +29,7 @@ ci = [
 [tasks.demo]
 command = [
   "cargo run -q -p clml --example stream | cat -v",
-  "cargo run -q -p clml --example stream --features anstream | cat -v",
+  "cargo run -q -p clml --example stream --no-default-features | cat -v",
 ]
 description = "Show the anstream feature stripping codes when stdout is not a tty"
 

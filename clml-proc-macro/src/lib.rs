@@ -1,4 +1,4 @@
-//! This internal library provides the procedural macros needed by the crate [`clml`].
+//! Procedural macros for [`clml`]. This crate is internal and has no stable API.
 //!
 //! [`clml`]: https://crates.io/crates/clml
 
@@ -68,9 +68,10 @@ pub fn cwritelndoc(input: TokenStream) -> TokenStream {
     get_macro_doc("writeln", input, true)
 }
 
-/// Colorizes a string literal, without formatting the `format!`-like placeholders.
+/// Replaces the tags in a string literal with ANSI sequences. Does not process formatting
+/// placeholders.
 ///
-/// Accepts only one argument.
+/// Takes exactly one argument.
 ///
 /// #### Example
 ///
@@ -86,9 +87,9 @@ pub fn cstr(input: TokenStream) -> TokenStream {
         .into()
 }
 
-/// Removes all the color tags from the given string literal.
+/// Removes all tags from a string literal.
 ///
-/// Accepts only one argument.
+/// Takes exactly one argument.
 ///
 /// #### Example
 ///
