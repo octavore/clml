@@ -24,6 +24,7 @@ readme = "README.md"
 exclude = ["axo.toml", "axo.lock", ".rumdl.toml", "rustfmt.toml", ".gitignore"]
 
 [features]
+default = ["anstream", "doc"]
 # Route the printing macros through `anstream`, which adapts ANSI escape codes to the terminal
 # (stripping them when not a tty, honouring NO_COLOR, translating for legacy Windows consoles).
 anstream = ["dep:anstream"]
