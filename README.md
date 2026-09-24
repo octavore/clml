@@ -31,7 +31,7 @@ Each macro mirrors its `std` counterpart and accepts the same positional and nam
 | `cwrite!`     | `write!`     |
 | `cwriteln!`   | `writeln!`   |
 
-Two macros have no `std` equivalent:
+Additionally, this package adds two new macros:
 
 - `cstr!(...)` replaces the tags in a string literal with ANSI sequences and returns a new string literal. It does not process formatting placeholders.
 - `untagged!(...)` removes all tags from a string literal.
@@ -51,13 +51,13 @@ Styles: `<strong>`/`<em>`/`<bold>`/`<s>`, `<dim>`, `<underline>`/`<u>`, `<italic
 
 CLML supports 256-color and true-color output: `<palette(42)>` (aliases `<p(...)>`, `<pal(...)>`, or just `<42>`), `<rgb(10,20,30)>`, and `<#a0b0c0>`.
 
-Hyperlinks use the OSC 8 escape sequence, which most modern terminal emulators understand. `<link(https://example.com)>text</>` makes `text` a clickable link.
+Hyperlinks use the OSC-8 escape sequence, which most modern terminal emulators understand. `<link(https://example.com)>text</>` makes `text` a clickable link.
 
-Tags can nest, and the macros close any unclosed tags at the end of the string. The macros also skip escape sequences that would not change the current style. Errors such as unknown tags or mismatched closing tags appear at compile time and point into the format string.
+Tags can nest, and macros close any unclosed tags at the end of the string. The macros also skip escape sequences that would not change the current style. Errors such as unknown tags or mismatched closing tags are surfaced at compile time and point into format string.
 
 ## Composability
 
-The macros work inside your own `macro_rules!`:
+These macros work inside your own `macro_rules!`:
 
 ```rust
 macro_rules! status {
@@ -70,11 +70,11 @@ status!("<green>Compiling</green> {package}");
 
 Implicit named captures such as `{package}` resolve against the caller's scope, not the wrapper's.
 
-## The `anstream` feature
+## `anstream` support
 
 The `anstream` feature is enabled by default. It routes the printing macros through [`anstream`](https://crates.io/crates/anstream), which strips escape codes when the output is not a terminal, honors `NO_COLOR`, `CLICOLOR`, and `CLICOLOR_FORCE`. CLML has not been tested with non-ANSI terminals such as legacy Windows consoles.
 
-Without it, the printing macros write to `std::io::stdout` or `std::io::stderr` and emit the escape codes verbatim. To opt out:
+Without `anstream`, the printing macros write to `std::io::stdout` or `std::io::stderr` and emit the escape codes verbatim. To opt out:
 
 ```toml
 clml = { version = "0.3", default-features = false }
